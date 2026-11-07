@@ -76,8 +76,12 @@ BETON INDUSTRY/
 4. **Rasmlar uchun Volume (majburiy):** ilova servisi → **Settings → Volumes → New Volume**,
    mount path: `/data`. Volume'siz yuklangan rasmlar har deployda o'chib ketadi.
 5. **Settings → Networking → Generate Domain** (yoki o'z domeningizni ulang) va domenni `ALLOWED_HOSTS` ga yozing.
-6. Deploy tugagach, birinchi administratorni konteyner ichida yarating (Railway CLI'ning `railway ssh`
-   buyrug'i yoki dashboarddagi servis konsoli orqali):
+6. **Birinchi administrator (eng oson yo'l):** servis → **Variables** ga `ADMIN_USERNAME` va
+   `ADMIN_PASSWORD` qo'shing (parol kamida 10 belgi, harf va raqam). Servis qayta ishga tushganda
+   administrator avtomatik yaratiladi — faqat tizimda hali admin bo'lmasa. Kirib bo'lgach,
+   **`ADMIN_PASSWORD` o'zgaruvchisini o'chirib qo'ying.**
+
+   Muqobil yo'l — konteyner ichida (Railway CLI'ning `railway ssh` buyrug'i yoki dashboarddagi servis konsoli orqali):
    ```bash
    railway ssh
    cd /app/backend && python -m app.cli create-admin

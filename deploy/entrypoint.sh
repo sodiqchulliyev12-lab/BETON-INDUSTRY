@@ -21,6 +21,9 @@ fi
 echo "[entrypoint] Baza migratsiyalari qo'llanmoqda..."
 $AS_APP python -m alembic upgrade head
 
+# Birinchi administrator: faqat ADMIN_USERNAME/ADMIN_PASSWORD berilgan va admin hali yo'q bo'lsa yaratiladi
+$AS_APP python -m app.cli bootstrap-admin || true
+
 # WEB_CONCURRENCY — uvicorn jarayonlari soni. Eslatma: so'rovlar cheklovi (rate limit) har bir
 # jarayonda alohida hisoblanadi, shuning uchun jarayonlar sonini katta qilmang (1–2 yetarli).
 echo "[entrypoint] Server ishga tushmoqda: port ${PORT:-8000}, jarayonlar ${WEB_CONCURRENCY:-2}"

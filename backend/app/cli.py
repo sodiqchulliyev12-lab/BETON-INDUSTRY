@@ -9,6 +9,7 @@ Hech bir buyruq standart parol yaratmaydi — parol har doim qo'lda kiritiladi.
 """
 import argparse
 import getpass
+import os
 import sys
 from datetime import date
 from decimal import Decimal
@@ -87,6 +88,41 @@ def create_admin(args: argparse.Namespace) -> int:
     return 0
 
 
+def bootstrap_admin(_: argparse.Namespace) -> int:
+    """Birinchi administratorni muhit o'zgaruvchilaridan yaratish (Railway kabi hostinglar uchun).
+
+    ADMIN_USERNAME va ADMIN_PASSWORD (ixtiyoriy: ADMIN_FULL_NAME) berilgan bo'lsa VA tizimda hali
+    birorta ham administrator bo'lmasa — yaratadi. Aks holda hech narsa qilmaydi. Deploy'ni hech qachon
+    to'xtatmaydi (har doim 0 qaytaradi); parol logga yozilmaydi.
+    Administrator yaratilgach, o'zgaruvchilarni hostingdan o'chirib qo'yish tavsiya etiladi.
+    """
+    username = (os.environ.get("ADMIN_USERNAME") or "").strip().lower()
+    password = os.environ.get("ADMIN_PASSWORD") or ""
+    full_name = (os.environ.get("ADMIN_FULL_NAME") or "").strip() or "Administrator"
+    if not username or not password:
+        return 0
+    if len(username) < 3 or not username.replace("_", "").replace(".", "").isalnum():
+        _print("[bootstrap-admin] ADMIN_USERNAME noto‘g‘ri: kamida 3 belgi, lotin harflari, raqam, '_' yoki '.'.")
+        return 0
+    problems = password_problems(password)
+    if problems:
+        _print("[bootstrap-admin] ADMIN_PASSWORD talabga javob bermaydi — " + ", ".join(problems) + ". Administrator yaratilmadi.")
+        return 0
+
+    with SessionLocal() as db:
+        if db.scalar(select(func.count()).select_from(User).where(User.role == UserRole.ADMIN)):
+            _print("[bootstrap-admin] Administrator allaqachon mavjud — hech narsa o‘zgartirilmadi. "
+                   "ADMIN_USERNAME / ADMIN_PASSWORD o‘zgaruvchilarini o‘chirib qo‘ying.")
+            return 0
+        if db.scalar(select(User.id).where(func.lower(User.username) == username)):
+            _print(f"[bootstrap-admin] '{username}' loginli foydalanuvchi mavjud, lekin administrator emas — o‘zgartirilmadi.")
+            return 0
+        db.add(User(username=username, full_name=full_name, password_hash=hash_password(password), role=UserRole.ADMIN))
+        db.commit()
+    _print(f"[bootstrap-admin] Administrator '{username}' yaratildi. Endi ADMIN_PASSWORD o‘zgaruvchisini o‘chirib qo‘ying.")
+    return 0
+
+
 def seed_demo(_: argparse.Namespace) -> int:
     with SessionLocal() as db:
         created = 0
@@ -152,6 +188,7 @@ def main(argv: list[str] | None = None) -> int:
     p_admin.add_argument("--password-stdin", action="store_true", help="Parolni stdin'dan o‘qish (avtomatlashtirish uchun)")
     p_admin.set_defaults(func=create_admin)
 
+    sub.add_parser("bootstrap-admin", help="Birinchi administratorni ADMIN_USERNAME/ADMIN_PASSWORD dan yaratish").set_defaults(func=bootstrap_admin)
     sub.add_parser("check-db", help="Bazaga ulanishni tekshirish").set_defaults(func=check_db)
     sub.add_parser("seed-demo", help="DEMO ma'lumot qo'shish").set_defaults(func=seed_demo)
     sub.add_parser("clear-demo", help="DEMO ma'lumotni olib tashlash").set_defaults(func=clear_demo)
