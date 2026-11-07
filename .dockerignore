@@ -1,0 +1,23 @@
+# Docker image'ga kirmaydigan fayllar (maxfiy ma'lumotlar va keraksiz narsalar)
+.git
+.gitignore
+.github
+.claude
+.vscode
+.idea
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.venv
+**/venv
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/uploads
+uploads
+backups
+*.log
+*.dump
+*.sql.gz
+docker-compose.yml
+README.md

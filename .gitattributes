@@ -1,0 +1,7 @@
+# Windows'da git shell skriptlarni CRLF ga o'tkazib yubormasligi kerak — aks holda
+# Linux konteynerida "/bin/sh^M: not found" xatosi chiqadi.
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.webp binary

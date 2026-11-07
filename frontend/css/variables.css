@@ -1,0 +1,100 @@
+/* ==========================================================================
+   BETON INDUSTRY — Dizayn tokenlari
+   Barcha ranglar, shriftlar va o'lchamlar shu yerda. Boshqa fayllar faqat
+   shu o'zgaruvchilardan foydalanadi.
+   ========================================================================== */
+
+:root {
+  /* --- Brend ranglari --- */
+  --c-graphite: #222B30;
+  --c-graphite-900: #161C20;
+  --c-graphite-800: #1B2327;
+  --c-graphite-700: #2C373D;
+  --c-graphite-600: #3A474E;
+  --c-graphite-500: #56646B;
+
+  --c-yellow: #F5B52B;
+  --c-yellow-600: #DFA015;
+  --c-yellow-100: #FDF1D5;
+
+  --c-white: #FFFFFF;
+  --c-gray: #F3F4F5;
+  --c-gray-200: #E5E8EA;
+  --c-gray-300: #D2D7DA;
+
+  /* --- Matn --- */
+  --c-text: #222B30;
+  --c-text-muted: #5B676E;
+  --c-text-on-dark: #E8ECEE;
+  --c-text-on-dark-muted: #A9B3B9;
+
+  /* --- Holat ranglari --- */
+  --c-success: #2E7D4F;
+  --c-success-bg: #E6F4EC;
+  --c-danger: #C23B3B;
+  --c-danger-bg: #FBE9E9;
+  --c-info: #2A6FB0;
+  --c-info-bg: #E7F0F9;
+  --c-warning-bg: #FDF1D5;
+
+  /* --- Shriftlar --- */
+  --f-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --f-display: 'Barlow Condensed', 'Arial Narrow', 'Segoe UI', Arial, sans-serif;
+
+  --fs-xs: 0.8125rem;
+  --fs-sm: 0.9375rem;
+  --fs-base: 1rem;
+  --fs-md: 1.125rem;
+  --fs-lg: 1.375rem;
+  --fs-xl: clamp(1.875rem, 1.35rem + 1.8vw, 2.75rem);
+  --fs-2xl: clamp(2.375rem, 1.4rem + 3.6vw, 4.25rem);
+
+  --lh-tight: 1.08;
+  --lh-base: 1.6;
+
+  /* --- Bo'shliqlar --- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 2.5rem;
+  --sp-8: 3.5rem;
+  --sp-9: 4.5rem;
+  --sp-10: 6rem;
+
+  /* --- Shakl --- */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+
+  --shadow-sm: 0 1px 2px rgba(22, 28, 32, 0.08);
+  --shadow: 0 8px 24px rgba(22, 28, 32, 0.10);
+  --shadow-lg: 0 20px 50px rgba(22, 28, 32, 0.20);
+
+  /* --- Maket --- */
+  --container: 1240px;
+  --gutter: clamp(16px, 4vw, 32px);
+  --header-h: 76px;
+
+  /* --- Harakat --- */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --t-fast: 0.15s;
+  --t: 0.25s;
+
+  /* --- Qatlamlar --- */
+  --z-header: 100;
+  --z-drawer: 110;
+  --z-modal: 200;
+  --z-toast: 300;
+
+  /* --- Sanoat naqshi (sariq-qora ogohlantirish chizig'i) --- */
+  --hazard: repeating-linear-gradient(-45deg, var(--c-yellow) 0 14px, var(--c-graphite) 14px 28px);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --header-h: 64px;
+  }
+}

@@ -1,0 +1,1028 @@
+/* ==========================================================================
+   Komponentlar: tugmalar, belgilar, kartalar, formalar, toast, modal, holatlar
+   ========================================================================== */
+
+/* --- Tugmalar --- */
+.btn {
+  --btn-bg: var(--c-graphite);
+  --btn-fg: var(--c-white);
+  --btn-border: var(--btn-bg);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 12px 24px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-decoration: none;
+  color: var(--btn-fg);
+  background: var(--btn-bg);
+  border: 2px solid var(--btn-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast),
+    transform var(--t-fast), box-shadow var(--t-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn--primary {
+  --btn-bg: var(--c-yellow);
+  --btn-fg: var(--c-graphite);
+}
+
+.btn--primary:hover {
+  --btn-bg: var(--c-yellow-600);
+}
+
+.btn--dark:hover {
+  --btn-bg: var(--c-graphite-700);
+}
+
+.btn--outline {
+  --btn-bg: transparent;
+  --btn-fg: var(--c-graphite);
+  --btn-border: var(--c-graphite);
+}
+
+.btn--outline:hover {
+  --btn-bg: var(--c-graphite);
+  --btn-fg: var(--c-white);
+}
+
+.btn--light {
+  --btn-bg: transparent;
+  --btn-fg: var(--c-white);
+  --btn-border: rgba(255, 255, 255, 0.5);
+}
+
+.btn--light:hover {
+  --btn-bg: var(--c-white);
+  --btn-fg: var(--c-graphite);
+  --btn-border: var(--c-white);
+}
+
+.btn--sm {
+  min-height: 40px;
+  padding: 8px 16px;
+  font-size: var(--fs-xs);
+}
+
+.btn--lg {
+  min-height: 56px;
+  padding: 14px 32px;
+  font-size: var(--fs-base);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn--icon {
+  width: 48px;
+  padding: 0;
+}
+
+.btn.is-loading {
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.btn.is-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 20px;
+  height: 20px;
+  margin: auto;
+  border: 2px solid var(--btn-fg);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.btn-row--center {
+  justify-content: center;
+}
+
+.link-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.link-arrow .icon {
+  transition: transform var(--t-fast);
+}
+
+.link-arrow:hover .icon {
+  transform: translateX(4px);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- Belgilar (badge) --- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.6;
+  border-radius: 999px;
+  background: var(--c-gray-200);
+  color: var(--c-graphite);
+  white-space: nowrap;
+}
+
+.badge--demo {
+  background: var(--c-yellow);
+  color: var(--c-graphite);
+}
+
+.badge--muted {
+  background: var(--c-gray-200);
+  color: var(--c-text-muted);
+}
+
+.badge--success {
+  background: var(--c-success-bg);
+  color: var(--c-success);
+}
+
+.badge--danger {
+  background: var(--c-danger-bg);
+  color: var(--c-danger);
+}
+
+/* --- Eslatma bloklari --- */
+.notice {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 18px;
+  font-size: var(--fs-sm);
+  border-radius: var(--radius);
+  background: var(--c-info-bg);
+  color: var(--c-graphite);
+  border-left: 4px solid var(--c-info);
+}
+
+.notice .icon {
+  margin-top: 2px;
+  color: var(--c-info);
+}
+
+.notice--demo {
+  background: var(--c-warning-bg);
+  border-left-color: var(--c-yellow);
+}
+
+.notice--demo .icon {
+  color: var(--c-yellow-600);
+}
+
+.notice--danger {
+  background: var(--c-danger-bg);
+  border-left-color: var(--c-danger);
+}
+
+.notice--danger .icon {
+  color: var(--c-danger);
+}
+
+/* --- Kartalar --- */
+.card {
+  position: relative;
+  padding: var(--sp-6);
+  background: var(--c-white);
+  border: 1px solid var(--c-gray-200);
+  border-radius: var(--radius);
+  transition: border-color var(--t), box-shadow var(--t), transform var(--t);
+}
+
+.card:hover {
+  border-color: var(--c-gray-300);
+  box-shadow: var(--shadow);
+}
+
+.card__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--sp-4);
+  color: var(--c-graphite);
+  background: var(--c-yellow);
+  border-radius: var(--radius-sm);
+}
+
+.card__icon .icon {
+  width: 28px;
+  height: 28px;
+}
+
+.card__title {
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-lg);
+}
+
+.card__text {
+  margin: 0;
+  color: var(--c-text-muted);
+}
+
+/* --- Mahsulot kartasi --- */
+.product-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--c-white);
+  border: 1px solid var(--c-gray-200);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: box-shadow var(--t), transform var(--t), border-color var(--t);
+}
+
+.product-card:hover {
+  border-color: var(--c-gray-300);
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+
+.product-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5) 0;
+}
+
+.product-card__grade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  height: 40px;
+  padding: 0 12px;
+  font-family: var(--f-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--c-graphite);
+  background: var(--c-yellow);
+  border-radius: var(--radius-sm);
+}
+
+.product-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.product-card__body {
+  flex: 1;
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+
+.product-card__title {
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-lg);
+}
+
+.product-card__desc {
+  margin-bottom: var(--sp-4);
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
+.product-card__footer {
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+  border-top: 1px solid var(--c-gray-200);
+  background: var(--c-gray);
+}
+
+.product-card__price {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.product-card__price span {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+.product-card__price strong {
+  font-family: var(--f-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.product-card__price .is-empty {
+  font-family: var(--f-body);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-text-muted);
+}
+
+.product-card__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+}
+
+.product-card.is-unavailable .product-card__grade {
+  background: var(--c-gray-300);
+}
+
+/* --- Texnik xususiyatlar ro'yxati --- */
+.spec-list {
+  display: grid;
+  gap: 0;
+  font-size: var(--fs-sm);
+}
+
+.spec-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--c-gray-200);
+}
+
+.spec-list dt {
+  color: var(--c-text-muted);
+}
+
+.spec-list dd {
+  font-weight: 700;
+  text-align: right;
+}
+
+/* ==========================================================================
+   Formalar
+   ========================================================================== */
+
+.form {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+@media (max-width: 640px) {
+  .form-row { grid-template-columns: 1fr; }
+}
+
+.fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.fieldset__legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--sp-2);
+  padding: 0;
+  font-family: var(--f-display);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.fieldset__num {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  font-size: var(--fs-sm);
+  color: var(--c-graphite);
+  background: var(--c-yellow);
+  border-radius: var(--radius-sm);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field__label {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.field__label .req {
+  color: var(--c-danger);
+}
+
+.field__hint {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 14px;
+  font-size: var(--fs-base);
+  background: var(--c-white);
+  border: 1.5px solid var(--c-gray-300);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  appearance: none;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: #8A959B;
+}
+
+.input:hover,
+.select:hover,
+.textarea:hover {
+  border-color: var(--c-graphite-500);
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--c-graphite);
+  box-shadow: 0 0 0 3px rgba(245, 181, 43, 0.45);
+}
+
+.input:disabled,
+.select:disabled,
+.textarea:disabled {
+  background: var(--c-gray);
+  cursor: not-allowed;
+}
+
+.select {
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23222B30' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+.textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.field.has-error .input,
+.field.has-error .select,
+.field.has-error .textarea {
+  border-color: var(--c-danger);
+}
+
+.field__error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--c-danger);
+}
+
+/* --- Miqdor kiritish (− / +) --- */
+.stepper {
+  display: grid;
+  grid-template-columns: 50px 1fr 50px;
+}
+
+.stepper .input {
+  text-align: center;
+  font-weight: 700;
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  -moz-appearance: textfield;
+}
+
+.stepper .input::-webkit-outer-spin-button,
+.stepper .input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.stepper__btn {
+  display: grid;
+  place-items: center;
+  background: var(--c-gray);
+  border: 1.5px solid var(--c-gray-300);
+  color: var(--c-graphite);
+}
+
+.stepper__btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.stepper__btn:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+
+.stepper__btn:hover {
+  background: var(--c-yellow);
+  border-color: var(--c-yellow);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 6px 14px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  background: var(--c-white);
+  border: 1.5px solid var(--c-gray-300);
+  border-radius: 999px;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+
+.chip:hover,
+.chip.is-active {
+  background: var(--c-yellow);
+  border-color: var(--c-yellow);
+}
+
+/* --- Kalit (switch) --- */
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--c-gray);
+  border: 1.5px solid var(--c-gray-200);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch__track {
+  position: relative;
+  flex: none;
+  width: 48px;
+  height: 28px;
+  background: var(--c-gray-300);
+  border-radius: 999px;
+  transition: background var(--t-fast);
+}
+
+.switch__track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  background: var(--c-white);
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--t) var(--ease);
+}
+
+.switch input:checked + .switch__track {
+  background: var(--c-graphite);
+}
+
+.switch input:checked + .switch__track::after {
+  transform: translateX(20px);
+  background: var(--c-yellow);
+}
+
+.switch input:focus-visible + .switch__track {
+  outline: 3px solid var(--c-yellow);
+  outline-offset: 2px;
+}
+
+.switch__text strong {
+  display: block;
+  font-size: var(--fs-sm);
+}
+
+.switch__text span {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+/* --- Belgilash katakchasi --- */
+.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.checkbox input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  accent-color: var(--c-graphite);
+}
+
+/* Bot'lar uchun yashirin maydon (honeypot) */
+.hp-field {
+  position: absolute !important;
+  left: -10000px !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* --- Forma natijasi --- */
+.form-success {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  text-align: center;
+}
+
+.form-success__icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  color: var(--c-white);
+  background: var(--c-success);
+  border-radius: 50%;
+}
+
+.form-success__icon .icon {
+  width: 32px;
+  height: 32px;
+  stroke-width: 2.5;
+}
+
+/* ==========================================================================
+   Xarita (Leaflet)
+   ========================================================================== */
+
+.map-box {
+  position: relative;
+  z-index: 0; /* Leaflet qatlamlari header va modal ustiga chiqmasin */
+  width: 100%;
+  height: 360px;
+  background: var(--c-gray);
+  border: 1px solid var(--c-gray-200);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.map-box--picker {
+  height: 320px;
+}
+
+.map-box .leaflet-container {
+  font-family: var(--f-body);
+}
+
+.map-pin {
+  background: none;
+  border: 0;
+}
+
+.map-pin span {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--c-white);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+
+.map-pin--factory span { background: var(--c-graphite); }
+.map-pin--delivery span { background: var(--c-yellow); border-color: var(--c-graphite); }
+
+.map-picker {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.map-picker__search {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.map-picker__search .input {
+  min-height: 42px;
+  padding: 8px 12px;
+}
+
+.map-picker__results {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--c-white);
+  border: 1px solid var(--c-gray-300);
+  border-radius: var(--radius-sm);
+}
+
+.map-picker__results button {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: var(--fs-sm);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+.map-picker__results button:hover,
+.map-picker__results button:focus-visible {
+  background: var(--c-yellow-100);
+}
+
+.map-picker__empty {
+  padding: 8px 10px;
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
+.map-picker__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+.map-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+/* ==========================================================================
+   Holatlar: yuklanmoqda / bo'sh / xato
+   ========================================================================== */
+
+.state {
+  grid-column: 1 / -1;
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-8) var(--sp-5);
+  text-align: center;
+  background: var(--c-white);
+  border: 1.5px dashed var(--c-gray-300);
+  border-radius: var(--radius);
+}
+
+.section--gray .state {
+  background: var(--c-white);
+}
+
+.state__icon {
+  width: 44px;
+  height: 44px;
+  margin-bottom: var(--sp-2);
+  color: var(--c-graphite-500);
+  stroke-width: 1.5;
+}
+
+.state--error .state__icon {
+  color: var(--c-danger);
+}
+
+.state__title {
+  margin: 0;
+  font-weight: 800;
+  font-size: var(--fs-md);
+}
+
+.state__text {
+  max-width: 460px;
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  margin-bottom: var(--sp-2);
+  border: 3px solid var(--c-gray-300);
+  border-top-color: var(--c-yellow);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.skeleton {
+  position: relative;
+  min-height: 360px;
+  background: var(--c-white);
+  border: 1px solid var(--c-gray-200);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(229, 232, 234, 0.7), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* ==========================================================================
+   Toast xabarlari
+   ========================================================================== */
+
+.toast-region {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: var(--z-toast);
+  display: grid;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  font-size: var(--fs-sm);
+  color: var(--c-white);
+  background: var(--c-graphite);
+  border-left: 4px solid var(--c-info);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+  animation: toast-in 0.3s var(--ease);
+}
+
+.toast--success { border-left-color: #47B97A; }
+.toast--error { border-left-color: #E65C5C; }
+.toast--warning { border-left-color: var(--c-yellow); }
+
+.toast__text {
+  flex: 1;
+}
+
+.toast__close {
+  flex: none;
+  padding: 2px;
+  color: var(--c-text-on-dark-muted);
+  background: none;
+  border: 0;
+}
+
+.toast__close:hover {
+  color: var(--c-white);
+}
+
+.toast.is-leaving {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+}
+
+/* ==========================================================================
+   Modal oyna
+   ========================================================================== */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.modal.is-open {
+  opacity: 1;
+}
+
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(22, 28, 32, 0.72);
+}
+
+.modal__dialog {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: var(--sp-6);
+  background: var(--c-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(12px);
+  transition: transform 0.25s var(--ease);
+}
+
+.modal.is-open .modal__dialog {
+  transform: none;
+}
+
+.modal__dialog:focus {
+  outline: none;
+}
+
+.modal__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: var(--c-gray);
+  border: 0;
+  border-radius: 50%;
+}
+
+.modal__close:hover {
+  background: var(--c-yellow);
+}
+
+.modal__title {
+  margin-right: 48px;
+  font-size: var(--fs-xl);
+}
+
+.modal-open {
+  overflow: hidden;
+}

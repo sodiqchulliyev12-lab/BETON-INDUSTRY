@@ -1,0 +1,44 @@
+# --- Maxfiy ma'lumotlar (HECH QACHON GitHub'ga yuklanmaydi) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Yuklangan fayllar (galereya rasmlari serverda saqlanadi) ---
+uploads/
+backend/uploads/
+
+# --- Loglar va zaxira nusxalar ---
+*.log
+logs/
+backups/
+*.sql.gz
+*.dump
+
+# --- IDE va OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Node (agar keyinchalik ishlatilsa) ---
+node_modules/
+
+# --- Claude Code lokal sozlamalari ---
+.claude/settings.local.json

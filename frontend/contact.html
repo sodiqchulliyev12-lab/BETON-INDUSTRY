@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#222B30">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <script type="module" src="js/main.js"></script>
+  <title>Aloqa — BETON INDUSTRY</title>
+  <meta name="description" content="BETON INDUSTRY bilan bog‘lanish: telefon, manzil, ish vaqti va qayta qo‘ng‘iroq formasi.">
+  <script type="module" src="js/pages/contact.js"></script>
+</head>
+<body data-page="contact">
+  <a class="skip-link" href="#main">Asosiy kontentga o‘tish</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="logo" href="index.html" aria-label="BETON INDUSTRY — bosh sahifa">
+        <img src="assets/img/logo.svg" alt="BETON INDUSTRY" width="196" height="40">
+      </a>
+
+      <nav class="nav" id="mainNav" aria-label="Asosiy menyu">
+        <ul class="nav__list">
+          <li><a class="nav__link" href="index.html" data-nav="home">Bosh sahifa</a></li>
+          <li><a class="nav__link" href="products.html" data-nav="products">Mahsulotlar</a></li>
+          <li><a class="nav__link" href="calculator.html" data-nav="calculator">Narxlar va kalkulyator</a></li>
+          <li><a class="nav__link" href="projects.html" data-nav="projects">Loyihalar</a></li>
+          <li><a class="nav__link" href="about.html" data-nav="about">Biz haqimizda</a></li>
+          <li><a class="nav__link" href="contact.html" data-nav="contact">Aloqa</a></li>
+        </ul>
+        <div class="nav__mobile-extra">
+          <a class="header-phone" data-setting="company.phone" data-setting-href="tel" hidden>
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-phone"></use></svg>
+            <span data-setting-value></span>
+          </a>
+          <a class="btn btn--primary btn--block" href="order.html">Buyurtma berish</a>
+        </div>
+      </nav>
+
+      <div class="site-header__actions">
+        <a class="header-phone" data-setting="company.phone" data-setting-href="tel" hidden>
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-phone"></use></svg>
+          <span data-setting-value></span>
+        </a>
+        <a class="btn btn--primary btn--sm btn--header" href="order.html">Buyurtma berish</a>
+        <button class="burger" type="button" aria-controls="mainNav" aria-expanded="false" aria-label="Menyuni ochish">
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-hero">
+      <div class="container">
+        <ol class="breadcrumbs" aria-label="Sahifa yo‘li">
+          <li><a href="index.html">Bosh sahifa</a></li>
+          <li aria-current="page">Aloqa</li>
+        </ol>
+        <p class="eyebrow">Aloqa</p>
+        <h1 class="page-hero__title">Biz bilan bog‘laning</h1>
+        <p class="page-hero__lead">Qo‘ng‘iroq qiling yoki xabar qoldiring — menejerimiz javob beradi.</p>
+      </div>
+    </section>
+
+    <section class="section section--gray">
+      <div class="container contact-layout">
+        <div>
+          <ul class="contact-list">
+            <li class="contact-item">
+              <span class="contact-item__icon"><svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-phone"></use></svg></span>
+              <div>
+                <span class="contact-item__label">Telefon</span>
+                <a class="contact-item__value" data-setting="company.phone" data-setting-href="tel" data-setting-empty="Kiritilmagan">…</a>
+              </div>
+            </li>
+            <li class="contact-item" data-setting-show="company.phone_secondary" hidden>
+              <span class="contact-item__icon"><svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-phone"></use></svg></span>
+              <div>
+                <span class="contact-item__label">Qo‘shimcha telefon</span>
+                <a class="contact-item__value" data-setting="company.phone_secondary" data-setting-href="tel">…</a>
+              </div>
+            </li>
+            <li class="contact-item">
+              <span class="contact-item__icon"><svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-mail"></use></svg></span>
+              <div>
+                <span class="contact-item__label">Email</span>
+                <a class="contact-item__value" data-setting="company.email" data-setting-href="mailto" data-setting-empty="Kiritilmagan">…</a>
+              </div>
+            </li>
+            <li class="contact-item">
+              <span class="contact-item__icon"><svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-pin"></use></svg></span>
+              <div>
+                <span class="contact-item__label">Manzil</span>
+                <span class="contact-item__value" data-setting="company.address" data-setting-empty="Kiritilmagan">…</span>
+              </div>
+            </li>
+            <li class="contact-item">
+              <span class="contact-item__icon"><svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-clock"></use></svg></span>
+              <div>
+                <span class="contact-item__label">Ish vaqti</span>
+                <span class="contact-item__value" data-setting="company.work_hours" data-setting-empty="Kiritilmagan">…</span>
+              </div>
+            </li>
+            <li class="contact-item" data-setting-show="company.telegram" hidden>
+              <span class="contact-item__icon"><svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-telegram"></use></svg></span>
+              <div>
+                <span class="contact-item__label">Telegram</span>
+                <a class="contact-item__value" data-setting="company.telegram" data-setting-href="telegram">…</a>
+              </div>
+            </li>
+            <li class="contact-item" data-setting-show="company.instagram" hidden>
+              <span class="contact-item__icon"><svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-instagram"></use></svg></span>
+              <div>
+                <span class="contact-item__label">Instagram</span>
+                <a class="contact-item__value" data-setting="company.instagram" data-setting-href="instagram">…</a>
+              </div>
+            </li>
+          </ul>
+
+          <div id="factoryMapWrap" class="mt-map" hidden>
+            <div class="map-box" id="factoryMap" role="region" aria-label="Zavod joylashuvi xaritada"></div>
+            <div class="map-links">
+              <a id="factoryDirections" href="#" target="_blank" rel="noopener">Yo‘nalish olish (OpenStreetMap) ↗</a>
+              <a id="factoryOsm" href="#" target="_blank" rel="noopener">Kattaroq xaritada ochish ↗</a>
+            </div>
+          </div>
+          <div class="map-placeholder" id="factoryMapEmpty" role="note">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-pin"></use></svg>
+            <strong>Zavod joylashuvi hali kiritilmagan</strong>
+            <span>Joylashuv admin panel orqali kiritilgach, shu yerda xarita ko‘rinadi.</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Xabar qoldiring</h2>
+          <p class="text-muted">Raqamingizni qoldiring — menejer o‘zi qo‘ng‘iroq qiladi.</p>
+          <form class="form" id="contactForm" novalidate>
+            <div class="form-row">
+              <div class="field">
+                <label class="field__label" for="cName">Ismingiz <span class="req">*</span></label>
+                <input class="input" id="cName" name="name" type="text" autocomplete="name" maxlength="100" required>
+              </div>
+              <div class="field">
+                <label class="field__label" for="cPhone">Telefon raqami <span class="req">*</span></label>
+                <input class="input" id="cPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+998 (90) 123-45-67" required>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field__label" for="cMessage">Xabar</label>
+              <textarea class="textarea" id="cMessage" name="message" rows="4" maxlength="1000"
+                placeholder="Savolingiz yoki obyekt haqida qisqacha"></textarea>
+            </div>
+            <div class="hp-field" aria-hidden="true">
+              <label for="cWebsite">Bu maydonni to‘ldirmang</label>
+              <input id="cWebsite" name="website" type="text" tabindex="-1" autocomplete="off">
+            </div>
+            <button class="btn btn--primary btn--lg btn--block" type="submit">Yuborish <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-arrow"></use></svg></button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__grid">
+      <div class="site-footer__brand">
+        <a class="logo" href="index.html" aria-label="BETON INDUSTRY — bosh sahifa">
+          <img src="assets/img/logo.svg" alt="BETON INDUSTRY" width="196" height="40" loading="lazy">
+        </a>
+        <p class="site-footer__about">Tayyor beton ishlab chiqarish va qurilish obyektlariga yetkazib berish.
+          Markani tanlang, hajmni hisoblang va buyurtmani onlayn yuboring.</p>
+      </div>
+
+      <div>
+        <h2 class="site-footer__title">Sahifalar</h2>
+        <ul class="footer-links">
+          <li><a href="products.html">Beton mahsulotlari</a></li>
+          <li><a href="calculator.html">Narxlar va kalkulyator</a></li>
+          <li><a href="order.html">Buyurtma berish</a></li>
+          <li><a href="projects.html">Loyihalarimiz</a></li>
+          <li><a href="about.html">Biz haqimizda</a></li>
+          <li><a href="contact.html">Aloqa</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h2 class="site-footer__title">Aloqa</h2>
+        <ul class="footer-contacts">
+          <li>
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-phone"></use></svg>
+            <a data-setting="company.phone" data-setting-href="tel" data-setting-empty="Telefon kiritilmagan">…</a>
+          </li>
+          <li>
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-mail"></use></svg>
+            <a data-setting="company.email" data-setting-href="mailto" data-setting-empty="Email kiritilmagan">…</a>
+          </li>
+          <li>
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-pin"></use></svg>
+            <span data-setting="company.address" data-setting-empty="Manzil kiritilmagan">…</span>
+          </li>
+          <li>
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#i-clock"></use></svg>
+            <span data-setting="company.work_hours" data-setting-empty="Ish vaqti kiritilmagan">…</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="container site-footer__bottom">
+      <span>© <span data-year></span> BETON INDUSTRY. Barcha huquqlar himoyalangan.</span>
+      <span>Sayt ma’lumotlari admin panel orqali yangilanadi.</span>
+    </div>
+  </footer>
+</body>
+</html>

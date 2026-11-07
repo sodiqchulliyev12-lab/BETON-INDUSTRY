@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 196 40" width="196" height="40" role="img" aria-labelledby="logoTitle">
+  <title id="logoTitle">BETON INDUSTRY</title>
+  <!-- Belgi: sariq kvadrat ichida beton qatlamlari -->
+  <rect x="0" y="2" width="36" height="36" rx="4" fill="#F5B52B"/>
+  <rect x="7" y="9" width="12" height="6" rx="1" fill="#222B30"/>
+  <rect x="7" y="17" width="18" height="6" rx="1" fill="#222B30"/>
+  <rect x="7" y="25" width="22" height="6" rx="1" fill="#222B30"/>
+  <!-- Vaqtinchalik matnli logo -->
+  <text x="46" y="21" font-family="'Arial Black', 'Segoe UI Black', Arial, sans-serif" font-weight="900" font-size="19" letter-spacing="1.5" fill="#FFFFFF">BETON</text>
+  <text x="47" y="35" font-family="Arial, 'Segoe UI', sans-serif" font-weight="700" font-size="10.5" letter-spacing="4.6" fill="#F5B52B">INDUSTRY</text>
+</svg>

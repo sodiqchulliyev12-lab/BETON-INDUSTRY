@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 460" width="640" height="460" role="img" aria-labelledby="plantTitle">
+  <title id="plantTitle">Beton zavodi illyustratsiyasi</title>
+  <defs>
+    <linearGradient id="siloGrad" x1="0" x2="1">
+      <stop offset="0" stop-color="#56646B"/>
+      <stop offset="0.45" stop-color="#7A878D"/>
+      <stop offset="1" stop-color="#3A474E"/>
+    </linearGradient>
+    <linearGradient id="towerGrad" x1="0" x2="1">
+      <stop offset="0" stop-color="#3A474E"/>
+      <stop offset="1" stop-color="#2C373D"/>
+    </linearGradient>
+    <pattern id="hazard" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="8" height="16" fill="#F5B52B"/>
+      <rect x="8" width="8" height="16" fill="#222B30"/>
+    </pattern>
+    <style>
+      .blink { animation: blink 2.4s ease-in-out infinite; }
+      .belt { stroke-dasharray: 6 10; animation: belt 1.2s linear infinite; }
+      @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+      @keyframes belt { to { stroke-dashoffset: -16; } }
+      @media (prefers-reduced-motion: reduce) { .blink, .belt { animation: none; } }
+    </style>
+  </defs>
+
+  <!-- Yer -->
+  <rect x="0" y="404" width="640" height="56" fill="#1B2327"/>
+  <rect x="0" y="402" width="640" height="3" fill="#56646B"/>
+
+  <!-- Inert material bunkerlari (o'ngda) -->
+  <g>
+    <path d="M478 330h48l-10 74h-28z" fill="#3A474E"/>
+    <path d="M532 330h48l-10 74h-28z" fill="#3A474E"/>
+    <path d="M586 330h48l-10 74h-28z" fill="#3A474E"/>
+    <path d="M480 330l22-26 22 26z" fill="#8C7A5B"/>
+    <path d="M534 330l22-22 22 22z" fill="#A39B8C"/>
+    <path d="M588 330l22-28 22 28z" fill="#6F6A62"/>
+    <rect x="474" y="326" width="164" height="6" fill="#56646B"/>
+  </g>
+
+  <!-- Qiya konveyer -->
+  <g>
+    <path d="M500 392 L 452 128" stroke="#56646B" stroke-width="16" stroke-linecap="round"/>
+    <path d="M500 392 L 452 128" stroke="#F5B52B" stroke-width="3" class="belt"/>
+    <path d="M488 330v74M474 250v154" stroke="#3A474E" stroke-width="5"/>
+  </g>
+
+  <!-- Silos 1 -->
+  <g>
+    <rect x="44" y="72" width="86" height="210" fill="url(#siloGrad)"/>
+    <ellipse cx="87" cy="72" rx="43" ry="12" fill="#8E9AA0"/>
+    <rect x="44" y="118" width="86" height="12" fill="#F5B52B"/>
+    <path d="M44 282h86l-30 52h-26z" fill="#3A474E"/>
+    <path d="M52 282v122M122 282v122M52 340l70 50M122 340l-70 50" stroke="#2C373D" stroke-width="5"/>
+    <rect x="80" y="52" width="14" height="12" fill="#3A474E"/>
+    <text x="87" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="13" fill="#222B30" opacity="0.55">CEMENT</text>
+  </g>
+
+  <!-- Silos 2 -->
+  <g>
+    <rect x="150" y="104" width="86" height="178" fill="url(#siloGrad)"/>
+    <ellipse cx="193" cy="104" rx="43" ry="12" fill="#8E9AA0"/>
+    <rect x="150" y="148" width="86" height="12" fill="#F5B52B"/>
+    <path d="M150 282h86l-30 52h-26z" fill="#3A474E"/>
+    <path d="M158 282v122M228 282v122M158 340l70 50M228 340l-70 50" stroke="#2C373D" stroke-width="5"/>
+  </g>
+
+  <!-- Quvurlar (silosdan minoraga) -->
+  <path d="M94 56 C 94 30, 290 30, 300 74" fill="none" stroke="#56646B" stroke-width="8"/>
+  <path d="M200 92 C 210 60, 280 60, 300 96" fill="none" stroke="#56646B" stroke-width="8"/>
+
+  <!-- Aralashtirish minorasi -->
+  <g>
+    <rect x="270" y="60" width="160" height="344" fill="url(#towerGrad)"/>
+    <rect x="262" y="48" width="176" height="16" fill="#56646B"/>
+    <rect x="262" y="44" width="176" height="6" fill="#F5B52B"/>
+    <rect x="300" y="20" width="12" height="28" fill="#3A474E"/>
+    <circle cx="306" cy="18" r="5" fill="#E65C5C" class="blink"/>
+
+    <!-- Derazalar -->
+    <g fill="#F5B52B">
+      <rect x="290" y="84" width="34" height="22" rx="2" opacity="0.9"/>
+      <rect x="334" y="84" width="34" height="22" rx="2" opacity="0.55"/>
+      <rect x="378" y="84" width="34" height="22" rx="2" opacity="0.9"/>
+      <rect x="290" y="124" width="34" height="22" rx="2" opacity="0.4"/>
+      <rect x="334" y="124" width="34" height="22" rx="2" opacity="0.9"/>
+      <rect x="378" y="124" width="34" height="22" rx="2" opacity="0.65"/>
+      <rect x="290" y="164" width="34" height="22" rx="2" opacity="0.85"/>
+      <rect x="334" y="164" width="34" height="22" rx="2" opacity="0.5"/>
+      <rect x="378" y="164" width="34" height="22" rx="2" opacity="0.85"/>
+    </g>
+
+    <!-- Boshqaruv xonasi -->
+    <rect x="282" y="208" width="136" height="54" fill="#222B30"/>
+    <rect x="290" y="216" width="120" height="30" fill="#9FC3D6" opacity="0.35"/>
+
+    <!-- Yuklash darvozasi -->
+    <rect x="284" y="300" width="132" height="104" fill="#161C20"/>
+    <rect x="284" y="288" width="132" height="12" fill="url(#hazard)"/>
+    <path d="M336 300h28v20l-6 10h-16l-6-10z" fill="#56646B"/>
+
+    <!-- Ustun va zinapoyalar -->
+    <path d="M430 120h18M430 200h18M430 280h18M440 110v294" stroke="#56646B" stroke-width="4"/>
+  </g>
+
+  <!-- Chiroqlar -->
+  <circle cx="600" cy="316" r="4" fill="#F5B52B" class="blink"/>
+  <circle cx="44" cy="66" r="3.5" fill="#F5B52B" class="blink"/>
+</svg>

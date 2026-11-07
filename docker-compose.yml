@@ -1,0 +1,27 @@
+# Lokal ishlab chiqish uchun PostgreSQL (Docker o'rnatilgan bo'lsa):
+#   docker compose up -d db
+# Ulanish: postgresql+psycopg://beton:beton_password@localhost:5432/beton_industry
+# Bu parol FAQAT lokal kompyuter uchun. Serverda boshqa, kuchli parol ishlatiladi.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: beton_industry_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: beton
+      POSTGRES_PASSWORD: beton_password
+      POSTGRES_DB: beton_industry
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - beton_pgdata:/var/lib/postgresql/data
+      - ./deploy/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beton -d beton_industry"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  beton_pgdata:

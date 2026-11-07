@@ -1,0 +1,3 @@
+# Ishlab chiqish va testlar uchun qo'shimcha paketlar
+-r requirements.txt
+pytest==9.2.0
