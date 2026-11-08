@@ -17,7 +17,7 @@ from app.config import settings
 from app.errors import register_exception_handlers
 from app.limiter import limiter
 from app.middleware import BodySizeLimitMiddleware, TrustedHostExceptHealth
-from app.routers import admin, auth, health, public
+from app.routers import admin, auth, health, public, telegram_webhook
 from app.services.uploads import ensure_upload_dir
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -107,6 +107,7 @@ def create_app() -> FastAPI:
     app.include_router(public.router)
     app.include_router(auth.router)
     app.include_router(admin.router)
+    app.include_router(telegram_webhook.router)
 
     # Noma'lum /api/... manzillari frontendning 404.html sahifasiga emas, JSON xatoga tushsin
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)

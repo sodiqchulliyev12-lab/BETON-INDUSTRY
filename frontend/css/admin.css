@@ -1061,6 +1061,22 @@ a.stat:hover {
   overflow-wrap: anywhere;
 }
 
+.steps-list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0;
+  padding-left: 20px;
+  font-size: var(--fs-sm);
+}
+
+.code-area {
+  min-height: 120px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre;
+  background: var(--c-gray);
+}
+
 .coming-soon {
   max-width: 640px;
   padding: var(--sp-7);

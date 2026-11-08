@@ -9,6 +9,7 @@ from app.models.product import ConcreteProduct, ConcretePrice
 from app.models.production import ProductionPlan, ProductionRecord
 from app.models.project import Project, ProjectImage
 from app.models.settings import SystemSetting, TelegramSettings
+from app.models.telegram_inbox import TelegramChat, TelegramMessage
 from app.models.user import User
 
 __all__ = [
@@ -28,6 +29,8 @@ __all__ = [
     "Project",
     "ProjectImage",
     "SystemSetting",
+    "TelegramChat",
+    "TelegramMessage",
     "TelegramSettings",
     "User",
     "Vehicle",

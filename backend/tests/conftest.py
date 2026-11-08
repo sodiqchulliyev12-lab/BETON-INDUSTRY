@@ -37,7 +37,7 @@ from app.models import ConcretePrice, ConcreteProduct  # noqa: E402
 from app.utils.timezone import today_local  # noqa: E402
 
 DATA_TABLES = [
-    "notification_logs", "order_trips", "production_records", "production_plans", "order_status_history", "order_items",
+    "telegram_messages", "telegram_chats", "notification_logs", "order_trips", "production_records", "production_plans", "order_status_history", "order_items",
     "orders", "callback_requests", "customers", "concrete_prices", "concrete_products",
     "project_images", "projects", "vehicles", "drivers",
 ]

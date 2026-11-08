@@ -133,6 +133,21 @@ def get_me() -> dict[str, Any]:
     return call("getMe")
 
 
+def set_webhook(url: str, secret_token: str) -> None:
+    """Telegram'ga xabarlarni shu manzilga yuborishni aytadi (guruh xabarlarini o'qish uchun)."""
+    call("setWebhook", {
+        "url": url,
+        "secret_token": secret_token,
+        "allowed_updates": ["message", "edited_message", "channel_post", "edited_channel_post", "my_chat_member"],
+        "drop_pending_updates": False,
+        "max_connections": 10,
+    })
+
+
+def webhook_info() -> dict[str, Any]:
+    return call("getWebhookInfo") or {}
+
+
 def recent_chats() -> list[dict[str, Any]]:
     """Botga yaqinda yozgan chatlar (chat ID'ni aniqlash uchun)."""
     updates = call("getUpdates", {"limit": 100, "allowed_updates": ["message", "channel_post", "my_chat_member"]}) or []

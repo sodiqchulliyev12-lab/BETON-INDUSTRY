@@ -78,6 +78,16 @@ class CallbackStatus(StrEnum):
     SPAM = "spam"
 
 
+class ChatPurpose(StrEnum):
+    """Telegram guruhining vazifasi — xabarlar Google Sheets'ning qaysi varag'iga yozilishini belgilaydi."""
+
+    PRODUCTION = "production"   # ishlab chiqarilgan beton
+    CASH = "cash"               # kassa va bank
+    MATERIALS = "materials"     # xomashyo kirimi
+    OTHER = "other"
+    IGNORE = "ignore"           # saqlanmaydi
+
+
 LABELS: dict[type[StrEnum], dict[str, str]] = {
     UserRole: {
         "admin": "Administrator",

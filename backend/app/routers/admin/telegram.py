@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.deps import require
-from app.models import NotificationLog, TelegramSettings, User
+from app.models import NotificationLog, TelegramChat, TelegramSettings, User
 from app.permissions import Perm
 from app.schemas.common import InputModel
 from app.services import telegram
@@ -170,9 +170,20 @@ def bot_info(_: User = Depends(require(Perm.SETTINGS_WRITE))) -> dict:
 
 
 @router.post("/discover-chats")
-def discover_chats(_: User = Depends(require(Perm.SETTINGS_WRITE))) -> list[dict]:
-    """Botga yaqinda yozgan chatlar ro'yxati — chat ID'ni topish uchun."""
+def discover_chats(db: Session = Depends(get_db), _: User = Depends(require(Perm.SETTINGS_WRITE))) -> list[dict]:
+    """Bot ko'rgan guruhlar — chat ID'ni topish uchun.
+
+    Webhook yoqilgan bo'lsa Telegram getUpdates'ga ruxsat bermaydi, shuning uchun avval bazadagi
+    (webhook orqali kelgan) guruhlar olinadi; webhook yo'q bo'lsa getUpdates ham qo'shiladi.
+    """
+    found: dict[str, dict] = {
+        str(c.chat_id): {"id": str(c.chat_id), "type": c.chat_type, "title": c.title, "username": None}
+        for c in db.scalars(select(TelegramChat))
+    }
     try:
-        return telegram.recent_chats()
+        for chat in telegram.recent_chats():
+            found.setdefault(chat["id"], chat)
     except telegram.TelegramError as exc:
-        raise _bad_request(str(exc)) from None
+        if not found and "webhook" not in str(exc).lower():
+            raise _bad_request(str(exc)) from None
+    return list(found.values())

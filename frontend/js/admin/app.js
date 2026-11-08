@@ -25,6 +25,7 @@ const NAV = [
   ] },
   { group: 'Tizim', items: [
     { route: 'telegram', label: 'Telegram sozlamalari', icon: 'i-telegram', perm: PERM.SETTINGS_READ },
+    { route: 'inbox', label: 'Guruhlar va Sheets', icon: 'i-chat', perm: PERM.SETTINGS_WRITE },
     { route: 'users', label: 'Foydalanuvchilar', icon: 'i-shield', perm: PERM.USERS_MANAGE },
     { route: 'settings', label: 'Tizim sozlamalari', icon: 'i-settings', perm: PERM.SETTINGS_READ },
   ] },
@@ -45,6 +46,7 @@ const VIEWS = {
   production: () => import('./views/production.js'),
   projects: () => import('./views/projects.js'),
   telegram: () => import('./views/telegram.js'),
+  inbox: () => import('./views/inbox.js'),
   soon: () => import('./views/soon.js'),
 };
 

@@ -178,6 +178,23 @@ def clear_demo(_: argparse.Namespace) -> int:
     return 0
 
 
+def telegram_webhook(_: argparse.Namespace) -> int:
+    """Telegram webhook'ni o'rnatadi (guruh xabarlarini qabul qilish uchun). Deploy'ni to'xtatmaydi."""
+    from app.services import telegram, telegram_inbox
+
+    url = telegram_inbox.webhook_url()
+    if not telegram.token_configured() or not url:
+        _print("[telegram-webhook] TELEGRAM_BOT_TOKEN yoki PUBLIC_BASE_URL yo‘q — o‘tkazib yuborildi.")
+        return 0
+    try:
+        telegram.set_webhook(url, telegram_inbox.webhook_secret())
+    except telegram.TelegramError as exc:
+        _print(f"[telegram-webhook] O‘rnatilmadi: {exc}")
+        return 0
+    _print(f"[telegram-webhook] O‘rnatildi: {url}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description="BETON INDUSTRY boshqaruv buyruqlari")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -190,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("bootstrap-admin", help="Birinchi administratorni ADMIN_USERNAME/ADMIN_PASSWORD dan yaratish").set_defaults(func=bootstrap_admin)
     sub.add_parser("check-db", help="Bazaga ulanishni tekshirish").set_defaults(func=check_db)
+    sub.add_parser("telegram-webhook", help="Telegram webhook'ni o'rnatish").set_defaults(func=telegram_webhook)
     sub.add_parser("seed-demo", help="DEMO ma'lumot qo'shish").set_defaults(func=seed_demo)
     sub.add_parser("clear-demo", help="DEMO ma'lumotni olib tashlash").set_defaults(func=clear_demo)
 
