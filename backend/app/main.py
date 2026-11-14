@@ -79,10 +79,12 @@ def create_app() -> FastAPI:
                 if path.startswith("/uploads/"):
                     # Fayl nomlari tasodifiy (uuid) va o'zgarmaydi — uzoq keshlash xavfsiz
                     headers["Cache-Control"] = "public, max-age=2592000, immutable"
-                elif response.headers.get("content-type", "").startswith("text/html"):
-                    headers["Cache-Control"] = "no-cache"  # har safar ETag bilan tekshiriladi
+                elif path.startswith("/assets/"):
+                    headers["Cache-Control"] = "public, max-age=3600"  # rasmlar kam o'zgaradi
                 else:
-                    headers["Cache-Control"] = "public, max-age=3600"
+                    # HTML, CSS, JS versiyasiz ulanadi: har safar ETag bilan tekshiriladi (o'zgarmagan bo'lsa 304),
+                    # aks holda deploydan keyin brauzer yangi JS bilan eski CSS'ni aralashtirib yuborishi mumkin
+                    headers["Cache-Control"] = "no-cache"
         return response
 
     # Tartib: oxirgi qo'shilgan middleware eng tashqarida ishlaydi

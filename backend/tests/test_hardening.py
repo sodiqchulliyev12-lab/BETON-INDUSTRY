@@ -13,7 +13,10 @@ def test_oversized_request_rejected(client):
 
 def test_cache_headers(client):
     assert client.get("/").headers["cache-control"] == "no-cache"
-    assert client.get("/css/base.css").headers["cache-control"] == "public, max-age=3600"
+    # CSS/JS versiyasiz — deploydan keyin eski nusxa qolib ketmasligi uchun har safar tekshiriladi
+    assert client.get("/css/base.css").headers["cache-control"] == "no-cache"
+    assert client.get("/js/admin/app.js").headers["cache-control"] == "no-cache"
+    assert client.get("/assets/icons/sprite.svg").headers["cache-control"] == "public, max-age=3600"
     assert client.get("/api/v1/health").headers["cache-control"] == "no-store"
     assert client.get("/api/v1/public/products").headers["cache-control"] == "public, max-age=30"
 

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models import CallbackRequest, Order, OrderItem, SystemSetting
 from app.models.enums import CallbackStatus, OrderStatus
+from app.services.value_stream import value_stream
 from app.utils.timezone import local_tz, today_local
 
 S = OrderStatus
@@ -108,4 +109,5 @@ def dashboard(db: Session, days: int = 30) -> dict[str, Any]:
         ) or 0,
         # None — "belgilanmagan". Tizim quvvatni taxmin qilmaydi.
         "production_capacity_m3_per_day": capacity,
+        "value_stream": value_stream(db),
     }

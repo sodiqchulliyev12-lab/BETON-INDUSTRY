@@ -37,6 +37,49 @@ def test_dashboard_counts_real_orders(client, login, order):
     assert data["by_product"][0]["volume_m3"] == 10.0
 
 
+def test_value_stream_empty_has_no_fake_times(client, login):
+    vs = client.get("/api/v1/admin/dashboard", headers=login()).json()["value_stream"]
+    assert vs["has_data"] is False and vs["bottleneck"] is None
+    assert vs["lead_time_hours"] is None and vs["efficiency_pct"] is None
+    assert [s["status"] for s in vs["stages"]][0] == "new" and all(s["avg_hours"] is None for s in vs["stages"])
+
+
+def test_value_stream_times_from_status_history(client, db, login, order):
+    from sqlalchemy import text
+
+    admin = login()
+    oid = find_order_id(client, admin)
+    client.patch(f"/api/v1/admin/orders/{oid}", headers=admin, json={"delivery_price": 0})
+    for status in ("confirmed", "in_production", "quality_check", "loaded", "in_transit", "delivered"):
+        assert client.post(f"/api/v1/admin/orders/{oid}/status", headers=admin, json={"status": status}).status_code == 200
+    # Holatlar orasidagi vaqtni aniq belgilaymiz (soatlarda, zayafkadan boshlab)
+    offsets = {"new": 0, "confirmed": 5, "in_production": 8, "quality_check": 9, "loaded": 10, "in_transit": 10.5, "delivered": 12}
+    for status, hours in offsets.items():
+        db.execute(text(
+            "UPDATE order_status_history SET created_at = TIMESTAMPTZ '2026-11-01 08:00+00' + make_interval(secs => :s) "
+            "WHERE order_id = :o AND to_status = :st"
+        ), {"s": hours * 3600, "o": oid, "st": status})
+    db.commit()
+
+    vs = client.get("/api/v1/admin/dashboard", headers=admin).json()["value_stream"]
+    stages = {s["status"]: s for s in vs["stages"]}
+    assert stages["new"]["avg_hours"] == 5 and stages["confirmed"]["avg_hours"] == 3
+    assert stages["scheduled"]["avg_hours"] is None  # bu bosqichdan o'tmagan — 0 deb ko'rsatilmaydi
+    assert stages["delivered"]["wip_orders"] == 1 and stages["delivered"]["wip_volume_m3"] == 10.0
+    assert vs["bottleneck"] == "new"
+    assert vs["lead_time_hours"] == 12 and vs["work_time_hours"] == 4  # 1 + 1 + 0.5 + 1.5
+    assert vs["wait_time_hours"] == 8 and vs["efficiency_pct"] == 33.3
+
+
+def test_value_stream_counts_cancellations_by_stage(client, login, order):
+    admin = login()
+    oid = find_order_id(client, admin)
+    client.post(f"/api/v1/admin/orders/{oid}/status", headers=admin, json={"status": "cancelled", "cancel_reason": "Mijoz voz kechdi"})
+    vs = client.get("/api/v1/admin/dashboard", headers=admin).json()["value_stream"]
+    assert vs["cancelled_total"] == 1 and vs["cancelled_volume_m3"] == 10.0
+    assert next(s for s in vs["stages"] if s["status"] == "new")["cancelled_here"] == 1
+
+
 # --- Buyurtmalar -----------------------------------------------------------
 
 def test_order_list_search_and_detail(client, login, order):
