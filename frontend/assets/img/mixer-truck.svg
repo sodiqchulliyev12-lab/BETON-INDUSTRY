@@ -78,9 +78,15 @@
 
     <style>
       .fins { animation: fins 1.4s linear infinite; }
-      .wheel { transform-box: fill-box; transform-origin: center; animation: roll 1.6s linear 1 both; }
+      /* Sahna sikli (pages.css: hero-drive, 18 s) bilan bir xil — yurganda aylanadi, turganda to'xtaydi */
+      .wheel { transform-box: fill-box; transform-origin: center; animation: roll 18s infinite; }
       @keyframes fins { to { transform: translateX(24px); } }
-      @keyframes roll { from { transform: rotate(-540deg); } }
+      @keyframes roll {
+        0% { transform: rotate(0deg); animation-timing-function: cubic-bezier(.2,.6,.3,1); }
+        19.4%, 36.1% { transform: rotate(2488deg); animation-timing-function: ease-in-out; }
+        47.2%, 63.9% { transform: rotate(3951deg); animation-timing-function: ease-in; }
+        75%, 100% { transform: rotate(4965deg); }
+      }
       @media (prefers-reduced-motion: reduce) { .fins, .wheel { animation: none; } }
     </style>
   </defs>

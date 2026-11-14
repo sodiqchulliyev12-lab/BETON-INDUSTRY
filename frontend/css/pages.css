@@ -32,8 +32,8 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
   align-items: center;
   gap: var(--sp-7);
-  min-height: min(720px, calc(100vh - var(--header-h)));
-  padding-block: var(--sp-9) var(--sp-10);
+  min-height: min(600px, calc(100vh - var(--header-h)));
+  padding-block: var(--sp-6) var(--sp-9);
 }
 
 .hero__title {
@@ -73,9 +73,18 @@
   color: var(--c-yellow);
 }
 
+/*
+ * Sahna (zavod rasmi birliklarida, kenglik 900, balandlik 460):
+ *  - quyish novi markazi x=350, pastki chekkasi y=282; yer y=402
+ *  - avtotarozi platformasi x=720..848
+ *  - mikser kengligi 270 birlik (30%); voronkasi chap chetidan 34 birlikda, tepasi y=302
+ * 18 s sikl: chapdan kiradi (3.5 s) → quyish tagida 3 s yuklanadi → avtotaroziga o'tadi (2 s)
+ * → tarozida 3 s turadi → o'ngga ketadi (2 s) → 4.5 s bo'sh.
+ */
 .hero__art {
   position: relative;
-  aspect-ratio: 640 / 460;
+  aspect-ratio: 900 / 460;
+  overflow: hidden;
 }
 
 .hero__plant {
@@ -87,19 +96,72 @@
 
 .hero__truck {
   position: absolute;
-  left: -4%;
-  bottom: 2%;
-  width: 62%;
+  left: 35.14%;
+  bottom: 10%;
+  width: 30%;
   height: auto;
-  animation: truck-arrive 1.6s var(--ease) both;
-  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.4));
+  animation: hero-drive 18s infinite;
 }
 
-@keyframes truck-arrive {
-  from {
-    opacity: 0;
-    transform: translateX(-40px);
-  }
+@keyframes hero-drive {
+  0% { transform: translateX(-218%); animation-timing-function: cubic-bezier(.2, .6, .3, 1); }
+  19.4%, 36.1% { transform: translateX(0); animation-timing-function: ease-in-out; }
+  47.2%, 63.9% { transform: translateX(127.7%); animation-timing-function: ease-in; }
+  75%, 100% { transform: translateX(218%); }
+}
+
+/* Quyish novidan mikser voronkasiga tushayotgan beton oqimi (faqat yuklash paytida) */
+.hero__pour {
+  position: absolute;
+  left: 38.5%;
+  top: 61.3%;
+  width: 0.8%;
+  height: 4.6%;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(180deg, #8E9AA0, #6D787E 60%, rgba(109, 120, 126, 0.2));
+  transform-origin: top;
+  transform: scaleY(0);
+  animation: hero-pour 18s infinite;
+}
+
+@keyframes hero-pour {
+  0%, 20% { transform: scaleY(0); opacity: 1; }
+  22.5%, 33.5% { transform: scaleY(1); opacity: 1; }
+  35.5%, 100% { transform: scaleY(1); opacity: 0; }
+}
+
+/* Matn bloki: ketma-ket paydo bo'lish */
+.hero__content > * {
+  animation: hero-rise 0.8s var(--ease) both;
+}
+.hero__content > :nth-child(2) { animation-delay: 0.12s; }
+.hero__content > :nth-child(3) { animation-delay: 0.24s; }
+.hero__content > :nth-child(4) { animation-delay: 0.36s; }
+.hero__content > :nth-child(5) { animation-delay: 0.48s; }
+
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(18px); }
+}
+
+/* Sarlavhadagi sariq so'zlar ustidan yorug'lik o'tadi */
+.hero__title em {
+  background: linear-gradient(100deg, var(--c-yellow) 40%, #FFF1C2 50%, var(--c-yellow) 60%) 0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: hero-shine 6s ease-in-out 1.2s infinite;
+}
+
+@keyframes hero-shine {
+  0%, 60% { background-position: 100% 0; }
+  100% { background-position: -50% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__truck { animation: none; transform: none; }
+  .hero__pour { display: none; }
+  .hero__content > *, .hero__title em { animation: none; }
 }
 
 @media (max-width: 960px) {
