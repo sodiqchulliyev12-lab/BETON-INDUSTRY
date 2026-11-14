@@ -79,12 +79,26 @@
  *  - avtotarozi platformasi x=684..812 (mikser ustida to'liq ko'rinadi: 613..883)
  *  - mikser kengligi 270 birlik (30%); voronkasi chap chetidan 34 birlikda, tepasi y=302
  * 18 s sikl: chapdan kiradi (3.5 s) → quyish tagida 3 s yuklanadi → avtotaroziga o'tadi (2 s)
- * → tarozida 3 s turadi → biroz yurib asta yo'qoladi (2 s) → 4.5 s bo'sh.
+ * → tarozida 3 s turadi → tarozidan tushib yana yuradi va asta yo'qoladi (3 s) → 3.5 s bo'sh.
  */
 .hero__art {
   position: relative;
   aspect-ratio: 900 / 460;
-  overflow: hidden;
+  /* Chapda kesiladi (mikser matn ustiga chiqmaydi), o'ngda tarozidan keyin ham yo'l davom etadi */
+  clip-path: inset(-30% -60% -10% 0);
+}
+
+/* Zavod rasmidagi yer o'ngga davom etadi (tarozidan keyingi yo'l), asta so'nadi */
+.hero__art::after {
+  content: "";
+  position: absolute;
+  left: 100%;
+  top: 87.39%;
+  bottom: 0;
+  width: 45%;
+  background: linear-gradient(#56646B 0 3px, #1B2327 3px);
+  -webkit-mask-image: linear-gradient(90deg, #000, transparent);
+  mask-image: linear-gradient(90deg, #000, transparent);
 }
 
 .hero__plant {
@@ -108,8 +122,9 @@
   0% { transform: translateX(-218%); opacity: 1; animation-timing-function: cubic-bezier(.2, .6, .3, 1); }
   19.4%, 36.1% { transform: translateX(0); opacity: 1; animation-timing-function: ease-in-out; }
   47.2%, 63.9% { transform: translateX(109.9%); opacity: 1; animation-timing-function: ease-in; }
-  75% { transform: translateX(150%); opacity: 0; }
-  75.1%, 100% { transform: translateX(-218%); opacity: 0; }
+  72% { opacity: 1; }
+  80.6% { transform: translateX(190%); opacity: 0; }
+  80.7%, 100% { transform: translateX(-218%); opacity: 0; }
 }
 
 /* Quyish novidan mikser voronkasiga tushayotgan beton oqimi (faqat yuklash paytida) */
