@@ -151,6 +151,19 @@ def test_journal_and_permissions(client, login):
         assert client.get(path, headers=manager).status_code == 403  # kassa ma'lumotlari faqat administratorga
 
 
+def test_bot_token_not_logged(monkeypatch, caplog):
+    """httpx so'rov URL'ini (ichida bot tokeni) INFO darajasida jurnalga yozmasligi kerak."""
+    import logging
+
+    import app.main  # noqa: F401  — jurnal sozlamalari shu yerda o'rnatiladi
+
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "123:SECRET-TOKEN")
+    monkeypatch.setattr(telegram, "http_transport", httpx.MockTransport(lambda r: httpx.Response(200, json={"ok": True, "result": {}})))
+    with caplog.at_level(logging.INFO):
+        telegram.call("getMe")
+    assert "SECRET-TOKEN" not in caplog.text
+
+
 def test_cli_installs_webhook(monkeypatch):
     calls = []
 

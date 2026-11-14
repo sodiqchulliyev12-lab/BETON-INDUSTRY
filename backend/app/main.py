@@ -21,6 +21,9 @@ from app.routers import admin, auth, health, public, telegram_webhook
 from app.services.uploads import ensure_upload_dir
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# httpx har bir so'rov URL'ini INFO darajasida yozadi; Telegram URL'ida bot tokeni bor — jurnalga tushmasin
+for _noisy in ("httpx", "httpcore"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 
 # HTML sahifalar uchun Content-Security-Policy: faqat o'z domenidan skript, Google Fonts'dan shrift
 CSP = "; ".join([
