@@ -14,7 +14,11 @@ class PriceOut(BaseModel):
 
 
 class ProductPublic(BaseModel):
-    """Saytdagi katalog uchun beton markasi."""
+    """Saytdagi katalog uchun beton markasi.
+
+    Narx ataylab YO'Q: zavod narxlarni ochiq saytda ko'rsatmaydi (raqobatchilar bilmasligi uchun),
+    narx mijoz bilan telefon orqali kelishiladi. Narxlar faqat admin panelda.
+    """
 
     id: int
     slug: str
@@ -24,4 +28,3 @@ class ProductPublic(BaseModel):
     specs: list[SpecItem]
     is_available: bool
     is_demo: bool
-    price: PriceOut | None  # None — narx hali belgilanmagan

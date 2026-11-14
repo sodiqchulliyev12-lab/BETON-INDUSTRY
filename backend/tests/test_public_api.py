@@ -72,7 +72,7 @@ def test_settings_are_empty_by_default_and_hide_private_keys(client, db):
 
 # --- Mahsulotlar va loyihalar ---------------------------------------------
 
-def test_products_list_shows_only_active_with_current_price(client, make_product):
+def test_products_list_shows_only_active_and_never_exposes_price(client, make_product):
     make_product("b25", price=Decimal("750000"), specs=[{"label": "Harakatchanlik", "value": "P3"}])
     make_product("b30", price=None)
     make_product("b10", is_active=False)
@@ -80,9 +80,10 @@ def test_products_list_shows_only_active_with_current_price(client, make_product
     data = client.get("/api/v1/public/products").json()
     by_slug = {p["slug"]: p for p in data}
     assert set(by_slug) == {"b25", "b30"}
-    assert by_slug["b25"]["price"] == {"price_per_m3": 750000.0, "currency": "UZS"}
     assert by_slug["b25"]["specs"] == [{"label": "Harakatchanlik", "value": "P3"}]
-    assert by_slug["b30"]["price"] is None
+    # Narx ochiq saytda ko'rsatilmaydi (raqobatchilar uchun) — javobda umuman bo'lmasligi kerak
+    assert all("price" not in p for p in data)
+    assert "750000" not in client.get("/api/v1/public/products").text
 
 
 def test_projects_only_published(client, db):
@@ -105,11 +106,12 @@ def test_create_order_with_delivery_keeps_total_pending(client, db, make_product
 
     assert body["order_number"] == f"BI-{today_local().year}-000001"
     assert body["status"] == "new"
-    assert body["concrete_total"] == 9375000.0  # 12.5 × 750 000
-    assert body["delivery_price_status"] == "pending"
-    assert body["grand_total"] is None  # yetkazib berish narxi 0 deb olinmaydi
+    assert set(body) == {"order_number", "status"}  # summa mijozga qaytarilmaydi — narx telefon orqali
 
     order = db.scalars(select(Order)).one()
+    # Ichki hisob saqlanadi (admin panel uchun)
+    assert order.concrete_total == Decimal("9375000.00")  # 12.5 × 750 000
+    assert order.delivery_price_status == "pending" and order.grand_total is None
     assert order.customer.phone == "+998901234567"
     assert order.items[0].unit_price == Decimal("750000.00")
     assert order.items[0].product_name == product.name
@@ -120,17 +122,18 @@ def test_create_order_with_delivery_keeps_total_pending(client, db, make_product
 def test_pickup_order_has_grand_total_and_no_address(client, db, make_product, tomorrow):
     product = make_product(price=Decimal("500000"))
     payload = order_payload(product.id, tomorrow, delivery_required=False, delivery_address="ixtiyoriy", volume_m3=2)
-    body = client.post("/api/v1/public/orders", json=payload).json()
-    assert body["delivery_price_status"] == "not_required"
-    assert body["grand_total"] == 1000000.0
-    assert db.scalars(select(Order)).one().delivery_address is None
+    assert client.post("/api/v1/public/orders", json=payload).status_code == 201
+    order = db.scalars(select(Order)).one()
+    assert order.delivery_price_status == "not_required"
+    assert order.grand_total == Decimal("1000000.00")
+    assert order.delivery_address is None
 
 
-def test_order_for_product_without_price_is_accepted_with_null_totals(client, make_product, tomorrow):
+def test_order_for_product_without_price_is_accepted_with_null_totals(client, db, make_product, tomorrow):
     product = make_product(price=None)
-    body = client.post("/api/v1/public/orders", json=order_payload(product.id, tomorrow)).json()
-    assert body["concrete_total"] is None
-    assert body["grand_total"] is None
+    assert client.post("/api/v1/public/orders", json=order_payload(product.id, tomorrow)).status_code == 201
+    order = db.scalars(select(Order)).one()
+    assert order.concrete_total is None and order.grand_total is None
 
 
 def test_same_phone_reuses_customer_and_numbers_increase(client, db, make_product, tomorrow):

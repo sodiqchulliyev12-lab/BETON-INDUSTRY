@@ -37,6 +37,7 @@ function render() {
   }
 
   grid.innerHTML = filtered.map((p) => renderProductCard(p)).join('');
+  document.dispatchEvent(new Event('site:rendered'));
 }
 
 async function load() {

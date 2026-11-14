@@ -1026,3 +1026,16 @@
 .modal-open {
   overflow: hidden;
 }
+
+/* Narx saytda ko'rsatilmaydi — kartada telefon havolasi */
+.product-card__call {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--c-text);
+  text-decoration: none;
+  border-bottom: 2px solid var(--c-yellow);
+}
+.product-card__call:hover { color: var(--c-yellow-600); }
+.product-card__call .icon { width: 16px; height: 16px; }

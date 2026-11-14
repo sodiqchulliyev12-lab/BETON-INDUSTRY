@@ -1,21 +1,12 @@
 /**
- * Beton markasi (mahsulot) bilan ishlash: narxni olish, xususiyatlarni tartiblash,
+ * Beton markasi (mahsulot) bilan ishlash: xususiyatlarni tartiblash,
  * katalog kartasini chizish. Mahsulotlar faqat API'dan keladi — bu yerda hech
- * qanday marka yoki narx yozilmagan.
+ * qanday marka yozilmagan.
+ *
+ * Narx ochiq saytda ko'rsatilmaydi (raqobatchilar bilmasligi uchun): API narx qaytarmaydi,
+ * kartada "Narx telefon orqali" va qo'ng'iroq tugmasi turadi.
  */
-import { escapeHtml, formatMoney } from './ui.js';
-
-/** @returns {{amount: number, currency: string} | null} */
-export function getUnitPrice(product) {
-  if (!product) return null;
-  const source = product.price;
-  const amount = source && typeof source === 'object' ? source.price_per_m3 : product.price_per_m3;
-  const currency = (source && typeof source === 'object' && source.currency) || product.currency || 'UZS';
-  if (amount === null || amount === undefined || amount === '') return null;
-  const num = Number(amount);
-  if (!Number.isFinite(num) || num < 0) return null;
-  return { amount: num, currency };
-}
+import { escapeHtml, icon } from './ui.js';
 
 /** specs: [{label, value}] yoki {label: value} → [{label, value}] */
 export function normalizeSpecs(specs) {
@@ -56,7 +47,6 @@ export function productOptions(products, { placeholder = 'Markani tanlang' } = {
     const flags = [];
     if (p.is_demo) flags.push('demo');
     if (!isOrderable(p)) flags.push('vaqtincha mavjud emas');
-    else if (!getUnitPrice(p)) flags.push('narx belgilanmagan');
     const suffix = flags.length ? ` (${flags.join(', ')})` : '';
     return `<option value="${escapeHtml(p.id)}"${isOrderable(p) ? '' : ' disabled'}>${escapeHtml(productLabel(p) + suffix)}</option>`;
   });
@@ -64,7 +54,6 @@ export function productOptions(products, { placeholder = 'Markani tanlang' } = {
 }
 
 export function renderProductCard(product, { maxSpecs = 5 } = {}) {
-  const price = getUnitPrice(product);
   const specs = normalizeSpecs(product.specs).slice(0, maxSpecs);
   const available = isOrderable(product);
   const key = encodeURIComponent(product.slug || product.id);
@@ -79,9 +68,8 @@ export function renderProductCard(product, { maxSpecs = 5 } = {}) {
         .join('')}</dl>`
     : '';
 
-  const priceHtml = price
-    ? `<strong>${escapeHtml(formatMoney(price.amount, price.currency))}</strong>`
-    : '<strong class="is-empty">Narx belgilanmagan</strong>';
+  const priceHtml = `<a class="product-card__call" data-setting-tel="company.phone" hidden>${icon('i-phone')}<span>Telefon orqali</span></a>
+    <strong class="is-empty" data-setting-hide="company.phone">Menejer aytadi</strong>`;
 
   const actions = available
     ? `<a class="btn btn--outline btn--sm" href="calculator.html?product=${key}">Hisoblash</a>
@@ -101,7 +89,7 @@ export function renderProductCard(product, { maxSpecs = 5 } = {}) {
         ${specsHtml}
       </div>
       <div class="product-card__footer">
-        <div class="product-card__price"><span>1 m³ narxi</span>${priceHtml}</div>
+        <div class="product-card__price"><span>Narx</span>${priceHtml}</div>
         <div class="product-card__actions">${actions}</div>
       </div>
     </article>`;

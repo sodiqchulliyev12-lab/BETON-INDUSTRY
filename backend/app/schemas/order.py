@@ -91,11 +91,10 @@ class OrderCreate(InputModel):
 
 
 class OrderCreated(OrmModel):
-    """Mijozga qaytariladigan javob — faqat buyurtma raqami va taxminiy summa."""
+    """Mijozga qaytariladigan javob — faqat buyurtma raqami va holati.
+
+    Summa qaytarilmaydi: narx ochiq emas, menejer mijozga telefon orqali aytadi.
+    """
 
     order_number: str
     status: OrderStatus
-    concrete_total: JsonDecimal | None
-    delivery_price_status: DeliveryPriceStatus
-    grand_total: JsonDecimal | None
-    currency: str

@@ -176,7 +176,7 @@ def test_product_crud_and_price_history(client, login):
     assert history[0]["created_by"] == "Manager Test"
 
     public = client.get("/api/v1/public/products").json()
-    assert public[0]["price"]["price_per_m3"] == 720000.0
+    assert "price" not in public[0]  # narx faqat admin panelda
 
     cleared = client.delete(f"/api/v1/admin/products/{pid}/prices/current", headers=headers).json()
     assert cleared["price"] is None

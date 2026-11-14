@@ -1,8 +1,7 @@
 /**
- * Beton kalkulyatori.
- *  - markalar va narxlar API'dan olinadi (kodda hech qanday narx yo'q)
- *  - Beton qiymati = hajm × 1 m³ narxi
- *  - yetkazib berish narxi 0 deb olinmaydi — "menejer tasdiqlaydi"
+ * Beton hajmi kalkulyatori.
+ *  - faqat kerakli HAJM hisoblanadi; narx saytda ko'rsatilmaydi (telefon orqali kelishiladi)
+ *  - markalar API'dan olinadi (kodda hech qanday marka yo'q)
  *  - "Buyurtma berish" bosilganda tanlovlar buyurtma sahifasiga o'tkaziladi
  */
 import { api } from '../api.js';
@@ -153,8 +152,8 @@ async function init() {
     layout.hidden = true;
     renderState(statusBox, {
       type: 'empty',
-      title: 'Narxlar hali kiritilmagan',
-      text: 'Beton markalari va narxlar admin panel orqali qo‘shilgandan so‘ng kalkulyator ishlaydi. Hozircha menejer bilan bog‘laning.',
+      title: 'Beton markalari hali kiritilmagan',
+      text: 'Markalar admin panel orqali qo‘shilgandan so‘ng kalkulyator ishlaydi. Hozircha menejer bilan bog‘laning.',
       actionLabel: 'Bog‘lanish',
       actionHref: 'contact.html',
     });

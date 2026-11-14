@@ -90,7 +90,17 @@ function buildHref(type, value) {
   }
 }
 
+let cachedSettings = null;
+
+// JS orqali keyin chizilgan bloklar (mahsulot kartalari, hisob-kitob) 'site:rendered' hodisasini yuboradi —
+// sozlamalar (telefon) ularga qayta qo'llanadi. Import emas, hodisa: brauzer keshida eski main.js qolsa ham
+// sahifa buzilmaydi.
+document.addEventListener('site:rendered', () => {
+  if (cachedSettings) applySettings(cachedSettings);
+});
+
 export function applySettings(settings) {
+  cachedSettings = settings;
   document.querySelectorAll('[data-setting]').forEach((el) => {
     const key = el.dataset.setting;
     const target = el.querySelector('[data-setting-value]') || el;
@@ -116,6 +126,20 @@ export function applySettings(settings) {
     } else {
       el.hidden = true;
     }
+  });
+
+  // <a data-setting-tel="company.phone"> — telefon bo'lsa tel: havola bo'lib ko'rinadi, ichidagi
+  // [data-setting-value] raqam bilan to'ldiriladi; telefon kiritilmagan bo'lsa yashirin qoladi
+  document.querySelectorAll('[data-setting-tel]').forEach((el) => {
+    const key = el.dataset.settingTel;
+    if (!hasValue(settings, key)) {
+      el.hidden = true;
+      return;
+    }
+    const value = String(settings[key]).trim();
+    el.href = buildHref('tel', value);
+    el.querySelectorAll('[data-setting-value]').forEach((t) => { t.textContent = value; });
+    el.hidden = false;
   });
 
   document.querySelectorAll('[data-setting-show]').forEach((el) => {

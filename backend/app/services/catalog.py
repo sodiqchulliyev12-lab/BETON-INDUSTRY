@@ -5,9 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import ConcreteProduct, Project, SystemSetting
-from app.schemas.product import PriceOut, ProductPublic, SpecItem
+from app.schemas.product import ProductPublic, SpecItem
 from app.schemas.project import ProjectImageOut, ProjectPublic
-from app.services.pricing import current_prices
 
 
 def _specs(raw: Any) -> list[SpecItem]:
@@ -30,10 +29,8 @@ def list_public_products(db: Session) -> list[ProductPublic]:
             .order_by(ConcreteProduct.sort_order, ConcreteProduct.grade_class, ConcreteProduct.id)
         )
     )
-    prices = current_prices(db, [p.id for p in products])
     result = []
     for p in products:
-        price = prices.get(p.id)
         result.append(
             ProductPublic(
                 id=p.id,
@@ -44,7 +41,6 @@ def list_public_products(db: Session) -> list[ProductPublic]:
                 specs=_specs(p.specs),
                 is_available=p.is_available,
                 is_demo=p.is_demo,
-                price=PriceOut(price_per_m3=price.price_per_m3, currency=price.currency) if price else None,
             )
         )
     return result

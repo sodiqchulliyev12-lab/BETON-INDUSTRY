@@ -834,3 +834,8 @@ a.contact-item__value:hover {
   justify-content: center;
   margin-top: var(--sp-5);
 }
+
+/* Hisob-kitob: narx o'rniga qo'ng'iroq tugmasi */
+.summary__call { margin-top: var(--sp-4); }
+.call-btn { gap: var(--sp-2); }
+.call-btn b { white-space: nowrap; }

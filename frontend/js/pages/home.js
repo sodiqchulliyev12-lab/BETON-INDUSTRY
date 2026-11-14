@@ -32,6 +32,7 @@ async function loadProducts() {
 
     const preview = products.slice(0, PREVIEW_COUNT);
     grid.innerHTML = preview.map((p) => renderProductCard(p, { maxSpecs: 3 })).join('');
+    document.dispatchEvent(new Event('site:rendered'));
     if (demoNotice) demoNotice.hidden = !preview.some((p) => p.is_demo);
   } catch (err) {
     grid.removeAttribute('aria-busy');
