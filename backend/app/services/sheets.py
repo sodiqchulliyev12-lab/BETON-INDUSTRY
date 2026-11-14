@@ -32,6 +32,7 @@ SHEET_NAMES: dict[ChatPurpose, str] = {
     ChatPurpose.PRODUCTION: "Xom — Ishlab chiqarish",
     ChatPurpose.CASH: "Xom — Kassa-Bank",
     ChatPurpose.MATERIALS: "Xom — Xomashyo kirimi",
+    ChatPurpose.ORDERS: "Xom — Zayafka",
     ChatPurpose.OTHER: "Xom — Boshqa",
 }
 HEADERS = ["Sana", "Vaqt", "Guruh", "Yozgan", "Xabar", "Turi", "Tahrirlangan", "Telegram havola", "Kalit"]

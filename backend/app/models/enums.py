@@ -84,6 +84,7 @@ class ChatPurpose(StrEnum):
     PRODUCTION = "production"   # ishlab chiqarilgan beton
     CASH = "cash"               # kassa va bank
     MATERIALS = "materials"     # xomashyo kirimi
+    ORDERS = "orders"           # zayafka (mijoz buyurtmalari)
     OTHER = "other"
     IGNORE = "ignore"           # saqlanmaydi
 

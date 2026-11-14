@@ -119,6 +119,14 @@ def test_sheets_failure_is_recorded_and_resync_works(client, db, login, gs):
     assert gs.rows[-1]["sheet"] == "Xom — Kassa-Bank"
 
 
+def test_orders_group_goes_to_zayafka_sheet(client, login, gs):
+    admin = login()
+    client.put("/api/v1/admin/telegram/sheets", headers=admin, json={"url": SHEETS_URL})
+    hook(client, msg(1, "M300 12 kub, ertaga 9:00"))
+    assert client.patch(f"/api/v1/admin/telegram/chats/{GROUP_ID}", headers=admin, json={"purpose": "orders"}).status_code == 200
+    assert gs.rows[-1]["sheet"] == "Xom — Zayafka"
+
+
 def test_ignored_group_not_saved(client, db, login):
     admin = login()
     hook(client, msg(1))

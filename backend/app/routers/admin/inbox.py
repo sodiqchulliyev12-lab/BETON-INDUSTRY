@@ -24,6 +24,7 @@ PURPOSE_LABELS = {
     ChatPurpose.PRODUCTION: "Ishlab chiqarish",
     ChatPurpose.CASH: "Kassa va bank",
     ChatPurpose.MATERIALS: "Xomashyo kirimi",
+    ChatPurpose.ORDERS: "Zayafka (buyurtmalar)",
     ChatPurpose.OTHER: "Boshqa",
     ChatPurpose.IGNORE: "E’tiborsiz (saqlanmaydi)",
 }
