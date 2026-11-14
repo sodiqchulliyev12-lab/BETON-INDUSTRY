@@ -76,10 +76,10 @@
 /*
  * Sahna (zavod rasmi birliklarida, kenglik 900, balandlik 460):
  *  - quyish novi markazi x=350, pastki chekkasi y=282; yer y=402
- *  - avtotarozi platformasi x=720..848
+ *  - avtotarozi platformasi x=684..812 (mikser ustida to'liq ko'rinadi: 613..883)
  *  - mikser kengligi 270 birlik (30%); voronkasi chap chetidan 34 birlikda, tepasi y=302
  * 18 s sikl: chapdan kiradi (3.5 s) → quyish tagida 3 s yuklanadi → avtotaroziga o'tadi (2 s)
- * → tarozida 3 s turadi → o'ngga ketadi (2 s) → 4.5 s bo'sh.
+ * → tarozida 3 s turadi → biroz yurib asta yo'qoladi (2 s) → 4.5 s bo'sh.
  */
 .hero__art {
   position: relative;
@@ -105,10 +105,11 @@
 }
 
 @keyframes hero-drive {
-  0% { transform: translateX(-218%); animation-timing-function: cubic-bezier(.2, .6, .3, 1); }
-  19.4%, 36.1% { transform: translateX(0); animation-timing-function: ease-in-out; }
-  47.2%, 63.9% { transform: translateX(127.7%); animation-timing-function: ease-in; }
-  75%, 100% { transform: translateX(218%); }
+  0% { transform: translateX(-218%); opacity: 1; animation-timing-function: cubic-bezier(.2, .6, .3, 1); }
+  19.4%, 36.1% { transform: translateX(0); opacity: 1; animation-timing-function: ease-in-out; }
+  47.2%, 63.9% { transform: translateX(109.9%); opacity: 1; animation-timing-function: ease-in; }
+  75% { transform: translateX(150%); opacity: 0; }
+  75.1%, 100% { transform: translateX(-218%); opacity: 0; }
 }
 
 /* Quyish novidan mikser voronkasiga tushayotgan beton oqimi (faqat yuklash paytida) */
