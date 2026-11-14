@@ -98,6 +98,8 @@ export async function render(ctx) {
               : `<p class="text-muted">${escapeHtml(webhook.reason || 'Webhook o‘rnatilmagan.')}</p>`}
             ${webhook.last_error_message ? `<p class="form-error">Telegram oxirgi xatosi: ${escapeHtml(webhook.last_error_message)}</p>` : ''}
             <button type="button" class="btn btn--outline btn--sm" data-webhook>${webhook.configured ? 'Qayta ulash' : 'Ulash'}</button>
+            <button type="button" class="btn btn--dark btn--sm" data-diagnose>Botni guruhlarda tekshirish</button>
+            <div data-diagnose-result class="mt-5"></div>
             <p class="field__hint mt-5">Bot guruhdagi oddiy xabarlarni ko‘rishi uchun: @BotFather → /setprivacy → Disable, va botni guruh administratori qiling.</p>
           </div>
         </section>
@@ -169,6 +171,27 @@ export async function render(ctx) {
     } catch (err) {
       toast(err.message, 'error');
       setButtonLoading(e.currentTarget, false);
+    }
+  });
+
+  root.querySelector('[data-diagnose]').addEventListener('click', async (e) => {
+    const button = e.currentTarget;
+    const box = root.querySelector('[data-diagnose-result]');
+    setButtonLoading(button, true);
+    try {
+      const res = await http('/admin/telegram/diagnose');
+      box.innerHTML = `
+        <p class="text-muted">Bot: <strong>@${escapeHtml(res.bot.username || '?')}</strong> ·
+          maxfiylik rejimi: ${res.bot.can_read_all_group_messages ? 'o‘chirilgan (hamma xabarni ko‘radi)' : '<strong>yoqilgan</strong> (faqat admin bo‘lgan guruhda ko‘radi)'}</p>
+        <ul class="steps-list">${res.chats.map((c) => `
+          <li><strong>${escapeHtml(c.title || String(c.chat_id))}</strong>:
+            ${c.error ? `<span class="form-error">${escapeHtml(c.error)}</span>` : escapeHtml(c.label || '')}
+            ${c.sees_messages ? ' — <span class="status status--delivered">xabarlarni ko‘radi</span>' : ' — <span class="status status--cancelled">xabarlarni ko‘rmaydi</span>'}</li>`).join('')}
+        </ul>`;
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setButtonLoading(button, false);
     }
   });
 

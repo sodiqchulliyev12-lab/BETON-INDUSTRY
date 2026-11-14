@@ -151,6 +151,30 @@ def test_journal_and_permissions(client, login):
         assert client.get(path, headers=manager).status_code == 403  # kassa ma'lumotlari faqat administratorga
 
 
+def test_diagnose_reports_bot_status_per_group(client, login, monkeypatch):
+    admin = login()
+    hook(client, msg(1))  # guruh A (GROUP_ID)
+    hook(client, msg(2, chat_id=-555))  # guruh B
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        method = request.url.path.rsplit("/", 1)[-1]
+        body = json.loads(request.content)
+        if method == "getMe":
+            return httpx.Response(200, json={"ok": True, "result": {"id": 42, "username": "vodiybetonbot", "can_read_all_group_messages": False}})
+        if body["chat_id"] == GROUP_ID:
+            return httpx.Response(200, json={"ok": True, "result": {"status": "administrator"}})
+        return httpx.Response(400, json={"ok": False, "description": "Bad Request: chat not found"})
+
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "1:fake")
+    monkeypatch.setattr(telegram, "http_transport", httpx.MockTransport(handler))
+    data = client.get("/api/v1/admin/telegram/diagnose", headers=admin).json()
+    assert data["bot"] == {"username": "vodiybetonbot", "can_read_all_group_messages": False}
+    by_id = {c["chat_id"]: c for c in data["chats"]}
+    assert by_id[GROUP_ID]["status"] == "administrator" and by_id[GROUP_ID]["sees_messages"] is True
+    assert by_id[-555]["sees_messages"] is False and "chat not found" in by_id[-555]["error"]
+    assert client.get("/api/v1/admin/telegram/diagnose", headers=login("manager")).status_code == 403
+
+
 def test_bot_token_not_logged(monkeypatch, caplog):
     """httpx so'rov URL'ini (ichida bot tokeni) INFO darajasida jurnalga yozmasligi kerak."""
     import logging

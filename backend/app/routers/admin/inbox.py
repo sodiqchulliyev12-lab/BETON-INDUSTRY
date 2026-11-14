@@ -173,6 +173,46 @@ def install_webhook(_: User = Depends(require(Perm.SETTINGS_WRITE))) -> dict:
     return {"ok": True, "url": url}
 
 
+MEMBER_STATUS = {
+    "creator": "Guruh egasi",
+    "administrator": "Administrator",
+    "member": "Oddiy a’zo (administrator emas)",
+    "restricted": "Cheklangan a’zo",
+    "left": "Guruhda yo‘q (chiqib ketgan)",
+    "kicked": "Guruhdan chiqarilgan",
+}
+
+
+@router.get("/diagnose")
+def diagnose(db: Session = Depends(get_db), _: User = Depends(require(Perm.SETTINGS_WRITE))) -> dict:
+    """Bot har bir guruhda bormi, administratormi — Telegram'ning o'zidan so'raladi.
+
+    Guruhdagi oddiy xabarlar kelmasa, sababi deyarli har doim shu yerda ko'rinadi.
+    """
+    try:
+        me = telegram.get_me()
+    except telegram.TelegramError as exc:
+        raise _error(f"Bot bilan bog‘lanib bo‘lmadi: {exc}") from None
+    reads_all = bool(me.get("can_read_all_group_messages"))
+    result = []
+    for chat in db.scalars(select(TelegramChat).order_by(TelegramChat.title)).all():
+        item = {"chat_id": chat.chat_id, "title": chat.title, "status": None, "label": None, "sees_messages": False, "error": None}
+        try:
+            member = telegram.call("getChatMember", {"chat_id": chat.chat_id, "user_id": me["id"]})
+            status = member.get("status")
+            item["status"] = status
+            item["label"] = MEMBER_STATUS.get(status, status)
+            # Administrator bot hamma xabarni ko'radi; oddiy a'zo faqat privacy o'chirilgan bo'lsa
+            item["sees_messages"] = status in ("creator", "administrator") or (status == "member" and reads_all)
+        except telegram.TelegramError as exc:
+            item["error"] = str(exc)
+        result.append(item)
+    return {
+        "bot": {"username": me.get("username"), "can_read_all_group_messages": reads_all},
+        "chats": result,
+    }
+
+
 # --- Google Sheets ---------------------------------------------------------
 
 class SheetsIn(InputModel):
