@@ -66,6 +66,26 @@ def test_trips_volume_capacity_and_rental_rules(client, setup):
     assert r.status_code == 422 and "oshib ketadi" in r.json()["detail"][0]["msg"]
 
 
+def test_per_trip_vehicle_takes_trip_cost(client, setup):
+    """Reys bay transport: egasi (tashuvchi) saqlanadi va har qatnovga to'lov yoziladi."""
+    h, oid = setup["h"], setup["order_id"]
+    vehicle = client.post("/api/v1/admin/vehicles", headers=h, json={
+        "plate_number": "30C555CC", "vehicle_type": "Beton mikser", "ownership": "per_trip", "rental_company": "Aliyev T.",
+    }).json()
+    assert vehicle["ownership"] == "per_trip" and vehicle["rental_company"] == "Aliyev T."
+
+    r = client.post(f"/api/v1/admin/orders/{oid}/trips", headers=h, json={"vehicle_id": vehicle["id"], "volume_m3": 6, "rental_cost": 180000})
+    assert r.status_code == 201, r.text
+    assert r.json()["trips"][0]["ownership"] == "per_trip"
+    assert r.json()["volumes"]["rental_cost_total"] == 180000.0
+
+    # o'zimiznikiga o'tkazilsa, egasi tozalanadi
+    own = client.put(f"/api/v1/admin/vehicles/{vehicle['id']}", headers=h, json={
+        "plate_number": "30C555CC", "vehicle_type": "Beton mikser", "ownership": "own", "rental_company": "Aliyev T.",
+    }).json()
+    assert own["rental_company"] is None
+
+
 def test_trip_status_flow_updates_vehicle_and_volumes(client, setup):
     h, oid = setup["h"], setup["order_id"]
     trip = client.post(f"/api/v1/admin/orders/{oid}/trips", headers=h, json={"vehicle_id": setup["own"]["id"], "volume_m3": 8}).json()["trips"][0]

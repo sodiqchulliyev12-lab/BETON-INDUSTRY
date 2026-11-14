@@ -147,9 +147,13 @@ def _check_volume(db: Session, order: Order, vehicle: Vehicle, volume: Decimal, 
         )
 
 
+# Qatnov xarajati (rental_cost) yoziladigan transport: arenda va reys bay. O'z mashinamizga — yo'q.
+PAID_OWNERSHIP = frozenset({VehicleOwnership.RENTED, VehicleOwnership.PER_TRIP})
+
+
 def _check_rental(vehicle: Vehicle, rental_cost: Decimal | None) -> None:
-    if rental_cost is not None and vehicle.ownership != VehicleOwnership.RENTED:
-        raise OrderError("Ijara xarajati faqat ijaraga olingan transport uchun yoziladi.", field="rental_cost")
+    if rental_cost is not None and vehicle.ownership not in PAID_OWNERSHIP:
+        raise OrderError("Qatnov xarajati faqat arenda yoki reys bay transport uchun yoziladi.", field="rental_cost")
 
 
 def sync_vehicle_status(db: Session, vehicle_id: int) -> None:
@@ -214,8 +218,8 @@ def update_trip(db: Session, trip: OrderTrip, data: TripUpdate) -> OrderTrip:
     if "rental_cost" in fields:
         _check_rental(vehicle, data.rental_cost)
         trip.rental_cost = data.rental_cost
-    elif vehicle.ownership != VehicleOwnership.RENTED:
-        trip.rental_cost = None  # o'z mashinasiga almashtirilganda ijara xarajati olib tashlanadi
+    elif vehicle.ownership not in PAID_OWNERSHIP:
+        trip.rental_cost = None  # o'z mashinasiga almashtirilganda qatnov xarajati olib tashlanadi
     if "notes" in fields:
         trip.notes = data.notes
     db.commit()

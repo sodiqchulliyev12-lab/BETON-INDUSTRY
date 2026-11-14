@@ -34,8 +34,9 @@ class OrderSource(StrEnum):
 
 
 class VehicleOwnership(StrEnum):
-    OWN = "own"
-    RENTED = "rented"
+    OWN = "own"             # o'zimizniki
+    RENTED = "rented"       # arenda — muddatga ijaraga olingan
+    PER_TRIP = "per_trip"   # reys bay — har bir qatnov uchun haq to'lanadi
 
 
 class VehicleStatus(StrEnum):
@@ -113,7 +114,7 @@ LABELS: dict[type[StrEnum], dict[str, str]] = {
         "confirmed": "Tasdiqlangan",
         "not_required": "Kerak emas",
     },
-    VehicleOwnership: {"own": "O‘zimizniki", "rented": "Ijaraga olingan"},
+    VehicleOwnership: {"own": "O‘zimizniki", "rented": "Arenda", "per_trip": "Reys bay"},
     VehicleStatus: {"free": "Bo‘sh", "busy": "Band", "repair": "Ta’mirda"},
     TripStatus: {
         "planned": "Rejalashtirilgan",

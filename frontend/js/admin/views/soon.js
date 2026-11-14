@@ -2,7 +2,7 @@
 import { escapeHtml, icon } from '../components.js';
 
 const DESCRIPTIONS = {
-  vehicles: 'Beton mikserlar va ijaraga olingan transport: davlat raqami, sig‘imi, holati (bo‘sh / band / ta’mirda), ijara xarajatlari.',
+  vehicles: 'Beton mikserlar: o‘zimizniki, arenda va reys bay transport: davlat raqami, sig‘imi, holati (bo‘sh / band / ta’mirda), ijara xarajatlari.',
   drivers: 'Haydovchilar ro‘yxati, telefonlari va transportga biriktirilishi.',
   production: 'Ishlab chiqarish rejasi, haqiqiy hajm, sifat nazorati, yuklangan va yetkazilgan hajm.',
   projects: 'Saytdagi «Loyihalarimiz» bo‘limi: loyihalar, fotosuratlar va galereya.',

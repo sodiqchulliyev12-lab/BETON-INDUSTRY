@@ -63,7 +63,7 @@ export const TRIP_STATUS = {
 };
 
 export const VEHICLE_STATUS = { free: 'Bo‘sh', busy: 'Band', repair: 'Ta’mirda' };
-export const OWNERSHIP = { own: 'O‘zimizniki', rented: 'Ijaraga olingan' };
+export const OWNERSHIP = { own: 'O‘zimizniki', rented: 'Arenda', per_trip: 'Reys bay' };
 export const EMPLOYMENT = { staff: 'Shtatdagi', contractor: 'Shartnoma asosida' };
 export const PLAN_STATUS = { planned: 'Rejalashtirilgan', in_progress: 'Jarayonda', completed: 'Bajarildi', cancelled: 'Bekor qilindi' };
 export const QC_STATUS = { pending: 'Kutilmoqda', passed: 'O‘tdi', failed: 'O‘tmadi' };

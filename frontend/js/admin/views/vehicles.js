@@ -1,5 +1,5 @@
 /**
- * Transport: o'z va ijaraga olingan mashinalar + kunlik qatnovlar jadvali (dispetcher uchun).
+ * Transport: o'zimizniki, arenda va reys bay mashinalar + kunlik qatnovlar jadvali (dispetcher uchun).
  * Transport soni va sig'imi kodda belgilanmagan.
  */
 import { http, qs } from '../http.js';
@@ -43,7 +43,8 @@ export async function render(ctx) {
     <div class="page-actions">
       <span class="text-muted">Faol: <strong>${active.length}</strong> · bo‘sh: <strong>${count((v) => v.status === 'free')}</strong>
         · band: <strong>${count((v) => v.status === 'busy')}</strong> · ta’mirda: <strong>${count((v) => v.status === 'repair')}</strong>
-        · ijarada: <strong>${count((v) => v.ownership === 'rented')}</strong></span>
+        · arenda: <strong>${count((v) => v.ownership === 'rented')}</strong>
+        · reys bay: <strong>${count((v) => v.ownership === 'per_trip')}</strong></span>
       <span class="page-actions__spacer"></span>
       ${canManage ? `<button type="button" class="btn btn--primary" data-create>${icon('i-plus')} Yangi transport</button>` : ''}
     </div>
@@ -66,7 +67,7 @@ export async function render(ctx) {
               <button type="button" class="icon-btn" data-edit aria-label="Tahrirlash" title="Tahrirlash">${icon('i-edit')}</button>
               ${v.trips_count === 0 ? `<button type="button" class="icon-btn" data-delete aria-label="O‘chirish" title="O‘chirish">${icon('i-trash')}</button>` : ''}
             </td>` : ''}
-          </tr>`).join('') : emptyRow(canManage ? 8 : 7, 'Transport hali kiritilmagan. «Yangi transport» orqali o‘zingizning va ijaraga olingan mashinalarni qo‘shing.')}
+          </tr>`).join('') : emptyRow(canManage ? 8 : 7, 'Transport hali kiritilmagan. «Yangi transport» orqali o‘zimizniki, arenda va reys bay mashinalarni qo‘shing.')}
         </tbody></table></div>
     </section>`;
 
@@ -112,17 +113,17 @@ function vehicleForm(vehicle, drivers, onSaved) {
         ${field({ name: 'ownership', label: 'Egasi', options: Object.entries(OWNERSHIP).map(([value, label]) => ({ value, label })), value: v.ownership })}
         ${field({ name: 'capacity_m3', label: 'Sig‘imi (m³)', value: v.capacity_m3 ?? '', attrs: 'inputmode="decimal" autocomplete="off"', hint: 'Noma’lum bo‘lsa bo‘sh qoldiring — tizim taxmin qilmaydi.' })}
       </div>
-      <div data-rented>${field({ name: 'rental_company', label: 'Ijaraga beruvchi', value: v.rental_company, attrs: 'maxlength="200"' })}</div>
+      <div data-rented>${field({ name: 'rental_company', label: 'Egasi / tashuvchi', value: v.rental_company, attrs: 'maxlength="200"', hint: 'Arenda beruvchi yoki reys bay ishlaydigan tashuvchi (firma yoki shaxs).' })}</div>
       <div class="form-row">
         ${field({ name: 'default_driver_id', label: 'Doimiy haydovchi', options: driverOptions, value: v.default_driver_id ?? '' })}
-        ${field({ name: 'contact_phone', label: 'Aloqa telefoni', type: 'tel', value: v.contact_phone, attrs: 'inputmode="tel"', hint: 'Masalan, ijara kompaniyasi yoki mashina telefoni.' })}
+        ${field({ name: 'contact_phone', label: 'Aloqa telefoni', type: 'tel', value: v.contact_phone, attrs: 'inputmode="tel"', hint: 'Masalan, arenda beruvchi, tashuvchi yoki haydovchi telefoni.' })}
       </div>
       ${field({ name: 'notes', label: 'Izoh', type: 'textarea', rows: 2, value: v.notes, attrs: 'maxlength="1000"' })}
       ${field({ name: 'is_active', label: 'Faol (qatnovga biriktirish mumkin)', type: 'checkbox', value: v.is_active })}`,
     onOpen: (form) => {
       attachPhoneMask(form.elements.contact_phone);
       const rented = form.querySelector('[data-rented]');
-      const sync = () => { rented.hidden = form.elements.ownership.value !== 'rented'; };
+      const sync = () => { rented.hidden = form.elements.ownership.value === 'own'; };
       form.elements.ownership.addEventListener('change', sync);
       sync();
     },
@@ -141,7 +142,7 @@ function vehicleForm(vehicle, drivers, onSaved) {
         capacity_m3: capacity,
         default_driver_id: f.default_driver_id.value ? Number(f.default_driver_id.value) : null,
         contact_phone: f.contact_phone.value.replace(/\D/g, '').length > 3 ? f.contact_phone.value : null,
-        rental_company: f.ownership.value === 'rented' ? (f.rental_company.value.trim() || null) : null,
+        rental_company: f.ownership.value !== 'own' ? (f.rental_company.value.trim() || null) : null,
         status: v.status,
         is_active: f.is_active.checked,
         notes: f.notes.value.trim() || null,

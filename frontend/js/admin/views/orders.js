@@ -169,11 +169,11 @@ function drawLogistics(box, order, data) {
     <div class="box__body">
       <span class="text-muted">Yetkazish jarayoni: ${escapeHtml(volume(v.delivered))} / ${escapeHtml(volume(v.ordered))}</span>
       ${progress(v.delivered, v.ordered)}
-      ${v.rental_cost_total > 0 ? `<p class="text-muted mt-5">Ijara transporti xarajati: <strong>${money(v.rental_cost_total)}</strong></p>` : ''}
+      ${v.rental_cost_total > 0 ? `<p class="text-muted mt-5">Arenda / reys bay qatnov xarajati: <strong>${money(v.rental_cost_total)}</strong></p>` : ''}
     </div>
     ${order.delivery_required ? `
       <div class="table-wrap"><table class="table">
-        <thead><tr><th>№</th><th>Transport</th><th>Haydovchi</th><th class="num">Hajm</th><th>Holat</th><th class="num">Ijara</th>${canTrips ? '<th></th>' : ''}</tr></thead>
+        <thead><tr><th>№</th><th>Transport</th><th>Haydovchi</th><th class="num">Hajm</th><th>Holat</th><th class="num">Qatnov xarajati</th>${canTrips ? '<th></th>' : ''}</tr></thead>
         <tbody>${data.trips.length ? data.trips.map((t) => `
           <tr data-trip="${t.id}">
             <td>${t.trip_no}</td>
@@ -252,13 +252,13 @@ async function tripForm(order, trip, volumes, redraw) {
       ${field({ name: 'driver_id', label: 'Haydovchi', value: trip ? (trip.driver_id ?? '') : '',
         options: [{ value: '', label: trip ? '— tanlanmagan —' : 'Mashinaning doimiy haydovchisi' }].concat(drivers.filter((d) => d.is_active).map((d) => ({ value: d.id, label: d.full_name }))) })}
       ${field({ name: 'volume_m3', label: 'Hajm (m³)', value: defaultVolume, required: true, attrs: 'inputmode="decimal" autocomplete="off"' })}
-      <div data-rental>${field({ name: 'rental_cost', label: 'Ijara xarajati (so‘m)', value: trip?.rental_cost ?? '', attrs: 'inputmode="decimal" autocomplete="off"', hint: 'Ijaraga olingan transport uchun shu qatnov narxi.' })}</div>
+      <div data-rental>${field({ name: 'rental_cost', label: 'Qatnov xarajati (so‘m)', value: trip?.rental_cost ?? '', attrs: 'inputmode="decimal" autocomplete="off"', hint: 'Arenda yoki reys bay transport uchun shu qatnovga to‘lanadigan summa.' })}</div>
       ${field({ name: 'notes', label: 'Izoh', type: 'textarea', rows: 2, value: trip?.notes ?? '', attrs: 'maxlength="500"' })}`,
     onOpen: (form) => {
       const rental = form.querySelector('[data-rental]');
       const sync = () => {
         const v = vehicles.find((x) => x.id === Number(form.elements.vehicle_id.value));
-        rental.hidden = !v || v.ownership !== 'rented';
+        rental.hidden = !v || v.ownership === 'own';
       };
       form.elements.vehicle_id.addEventListener('change', sync);
       sync();
@@ -267,7 +267,7 @@ async function tripForm(order, trip, volumes, redraw) {
       const f = form.elements;
       const vol = numberOrNull(f.volume_m3.value);
       const vehicle = vehicles.find((x) => x.id === Number(f.vehicle_id.value));
-      const rental = vehicle && vehicle.ownership === 'rented' ? numberOrNull(f.rental_cost.value) : null;
+      const rental = vehicle && vehicle.ownership !== 'own' ? numberOrNull(f.rental_cost.value) : null;
       localErrors(form, {
         volume_m3: vol === null || Number.isNaN(vol) || vol <= 0 ? 'Hajmni kiriting.'
           : vol > available + 1e-9 ? `Ko‘pi bilan ${volume(available)}.`
