@@ -107,7 +107,7 @@ function specRow(spec = { label: '', value: '' }) {
 function productForm(product, onSaved) {
   const p = product || { name: '', grade_class: '', slug: '', description: '', specs: [], is_active: true, is_available: true, is_demo: false, sort_order: 0 };
   formModal({
-    title: product ? `${p.grade_class} — tahrirlash` : 'Yangi beton markasi',
+    title: product ? `${p.name} · ${p.grade_class} — tahrirlash` : 'Yangi beton markasi',
     body: `
       <div class="form-row">
         ${field({ name: 'grade_class', label: 'Marka / sinf', value: p.grade_class, required: true, attrs: 'maxlength="20" placeholder="B25"' })}

@@ -11,6 +11,9 @@ import {
 } from '../components.js';
 import { openModal } from '../../ui.js';
 
+/** Oyna sarlavhasi uchun: «Beton M100 · B7.5» */
+const productTitle = (p) => (p.name ? `${p.name} · ${p.grade_class}` : p.grade_class);
+
 export async function render(ctx) {
   const { root, isCurrent } = ctx;
   const canManage = session.can(PERM.CATALOG_MANAGE);
@@ -58,7 +61,7 @@ export async function render(ctx) {
     row.querySelector('[data-clear]')?.addEventListener('click', async () => {
       const ok = await confirmAction({
         title: 'Narxni olib tashlash',
-        text: `«${product.grade_class}» uchun amaldagi narx yopiladi. Saytda «Narx belgilanmagan» ko‘rinadi. Tarix saqlanib qoladi.`,
+        text: `«${product.name} (${product.grade_class})» uchun amaldagi narx yopiladi. Yangi buyurtmalarda summa «aniqlanmagan» bo‘ladi. Tarix saqlanib qoladi.`,
         confirmLabel: 'Olib tashlash',
       });
       if (!ok) return;
@@ -75,12 +78,12 @@ export async function render(ctx) {
 
 function setPrice(product, onSaved) {
   formModal({
-    title: `${product.grade_class} — yangi narx`,
+    title: `${productTitle(product)} — yangi narx`,
     body: `
       ${product.price ? `<p class="text-muted">Amaldagi narx: <strong>${escapeHtml(formatMoney(product.price.price_per_m3, product.price.currency))}</strong></p>` : ''}
       ${field({ name: 'price_per_m3', label: '1 m³ narxi (so‘m)', required: true, attrs: 'inputmode="decimal" autocomplete="off"' })}
       ${field({ name: 'note', label: 'Izoh (ixtiyoriy)', attrs: 'maxlength="255" placeholder="Masalan: sement narxi oshdi"' })}
-      <p class="text-muted">Yangi narx darhol saytda ko‘rinadi. Avval berilgan buyurtmalar narxi o‘zgarmaydi.</p>`,
+      <p class="text-muted">Narx ochiq saytda ko‘rsatilmaydi — faqat admin panelda va yangi buyurtmalar summasida ishlatiladi. Avval berilgan buyurtmalar narxi o‘zgarmaydi.</p>`,
     onSubmit: async (form) => {
       const price = numberOrNull(form.elements.price_per_m3.value);
       localErrors(form, { price_per_m3: price === null || Number.isNaN(price) || price < 0 ? 'Narxni to‘g‘ri kiriting.' : null });
@@ -95,7 +98,7 @@ function setPrice(product, onSaved) {
 }
 
 async function showHistory(product) {
-  const close = openModal({ title: `${product.grade_class} — narxlar tarixi`, content: '<div data-history></div>' });
+  const close = openModal({ title: `${productTitle(product)} — narxlar tarixi`, content: '<div data-history></div>' });
   const holder = close.element.querySelector('[data-history]');
   holder.innerHTML = '<p class="text-muted">Yuklanmoqda…</p>';
   try {
