@@ -12,6 +12,12 @@ import {
   formModal, icon, loadingHtml, localErrors, numberOrNull, statusBadge, toast, volume,
 } from '../components.js';
 
+/** Marka nomi bilan: «Beton M100 · B7.5» (nom bo'lmasa — faqat sinf) */
+const gradeText = (x) => (x.product_name ? `${x.product_name} · ${x.grade_class}` : x.grade_class);
+const gradeHtml = (x) => (x.product_name
+  ? `<strong>${escapeHtml(x.product_name)}</strong> <span class="muted">${escapeHtml(x.grade_class)}</span>`
+  : `<strong>${escapeHtml(x.grade_class)}</strong>`);
+
 const vol = (v) => `${formatNumber(v || 0, 2)}<span class="stat__unit">m³</span>`;
 
 export async function render(ctx) {
@@ -84,7 +90,7 @@ export async function render(ctx) {
       <div class="table-wrap"><table class="table">
         <thead><tr><th>Marka</th><th class="num">Reja</th><th class="num">Ishlab chiqarildi</th><th>Bajarilishi</th></tr></thead>
         <tbody>${summary.by_product.map((p) => `
-          <tr><td><strong>${escapeHtml(p.grade_class)}</strong> — ${escapeHtml(p.product_name)}</td>
+          <tr><td>${gradeHtml(p)}</td>
             <td class="num">${volume(p.planned_m3)}</td><td class="num">${volume(p.produced_m3)}</td>
             <td>${p.planned_m3 > 0 ? `${formatNumber((p.produced_m3 / p.planned_m3) * 100, 0)}%` : '<span class="muted">rejasiz</span>'}</td></tr>`).join('')}
         </tbody></table></div></section>` : ''}
@@ -95,7 +101,7 @@ export async function render(ctx) {
         <thead><tr><th>Marka</th><th>Buyurtma</th><th class="num">Reja</th><th class="num">Bajarildi</th><th>Holat</th><th>Izoh</th>${canManage ? '<th></th>' : ''}</tr></thead>
         <tbody>${plans.length ? plans.map((p) => `
           <tr data-plan="${p.id}">
-            <td><strong>${escapeHtml(p.grade_class)}</strong> — ${escapeHtml(p.product_name)}</td>
+            <td>${gradeHtml(p)}</td>
             <td>${p.order_id ? `<a href="#/orders/${p.order_id}">${escapeHtml(p.order_number)}</a>` : '<span class="muted">Omborga / umumiy</span>'}</td>
             <td class="num">${volume(p.planned_volume_m3)}</td>
             <td class="num">${volume(p.produced_volume_m3)}</td>
@@ -115,7 +121,7 @@ export async function render(ctx) {
         <tbody>${records.length ? records.map((r) => `
           <tr data-record="${r.id}">
             <td class="nowrap">${fmtDateTime(r.produced_at).slice(11)}</td>
-            <td><strong>${escapeHtml(r.grade_class)}</strong></td>
+            <td>${gradeHtml(r)}</td>
             <td>${escapeHtml(r.batch_number || '—')}</td>
             <td>${r.order_id ? `<a href="#/orders/${r.order_id}">${escapeHtml(r.order_number)}</a>` : '—'}</td>
             <td class="num">${volume(r.produced_volume_m3)}</td>
@@ -135,7 +141,7 @@ export async function render(ctx) {
     const plan = plans.find((p) => p.id === Number(row.dataset.plan));
     row.querySelector('[data-plan-edit]')?.addEventListener('click', () => planForm(plan, day, products, reload));
     row.querySelector('[data-plan-delete]')?.addEventListener('click', async () => {
-      if (!(await confirmAction({ title: 'Rejani o‘chirish', text: `${plan.grade_class}, ${volume(plan.planned_volume_m3)} rejasi o‘chiriladi.`, confirmLabel: 'O‘chirish' }))) return;
+      if (!(await confirmAction({ title: 'Rejani o‘chirish', text: `${gradeText(plan)}, ${volume(plan.planned_volume_m3)} rejasi o‘chiriladi.`, confirmLabel: 'O‘chirish' }))) return;
       try {
         await http(`/admin/production/plans/${plan.id}`, { method: 'DELETE' });
         toast('Reja o‘chirildi.', 'success');
@@ -150,7 +156,7 @@ export async function render(ctx) {
     const record = records.find((r) => r.id === Number(row.dataset.record));
     row.querySelectorAll('[data-qc]').forEach((btn) => btn.addEventListener('click', () => qcForm(record, btn.dataset.qc, reload)));
     row.querySelector('[data-record-delete]')?.addEventListener('click', async () => {
-      if (!(await confirmAction({ title: 'Yozuvni o‘chirish', text: `${record.grade_class}, ${volume(record.produced_volume_m3)} yozuvi o‘chiriladi.`, confirmLabel: 'O‘chirish' }))) return;
+      if (!(await confirmAction({ title: 'Yozuvni o‘chirish', text: `${gradeText(record)}, ${volume(record.produced_volume_m3)} yozuvi o‘chiriladi.`, confirmLabel: 'O‘chirish' }))) return;
       try {
         await http(`/admin/production/records/${record.id}`, { method: 'DELETE' });
         toast('Yozuv o‘chirildi.', 'success');
@@ -173,7 +179,7 @@ async function openOrders() {
 
 const productOptions = (products, selected) => products
   .filter((p) => p.is_active || p.id === selected)
-  .map((p) => ({ value: p.id, label: `${p.grade_class} — ${p.name}` }));
+  .map((p) => ({ value: p.id, label: `${p.name} · ${p.grade_class}` }));
 
 async function planForm(plan, day, products, onSaved) {
   const orders = await openOrders();
@@ -235,7 +241,7 @@ async function recordForm(day, plans, products, onSaved) {
     title: 'Ishlab chiqarilgan hajmni kiritish',
     body: `
       ${field({ name: 'plan_id', label: 'Reja', value: activePlans[0]?.id ?? '',
-        options: [{ value: '', label: '— rejasiz —' }].concat(activePlans.map((p) => ({ value: p.id, label: `${p.grade_class} · ${volume(p.planned_volume_m3)}${p.order_number ? ` · ${p.order_number}` : ''}` }))),
+        options: [{ value: '', label: '— rejasiz —' }].concat(activePlans.map((p) => ({ value: p.id, label: `${gradeText(p)} · ${volume(p.planned_volume_m3)}${p.order_number ? ` · ${p.order_number}` : ''}` }))),
         hint: 'Reja tanlansa, marka va buyurtma rejadan olinadi.' })}
       <div data-free>
         ${field({ name: 'product_id', label: 'Beton markasi', value: products[0]?.id, options: productOptions(products) })}
@@ -286,7 +292,7 @@ function qcForm(record, status, onSaved) {
     submitLabel: 'Saqlash',
     danger: failed,
     body: `
-      <p>${escapeHtml(record.grade_class)} · ${escapeHtml(volume(record.produced_volume_m3))}${record.batch_number ? ` · partiya ${escapeHtml(record.batch_number)}` : ''}</p>
+      <p>${escapeHtml(gradeText(record))} · ${escapeHtml(volume(record.produced_volume_m3))}${record.batch_number ? ` · partiya ${escapeHtml(record.batch_number)}` : ''}</p>
       ${field({ name: 'qc_notes', label: failed ? 'Sababi' : 'Izoh (ixtiyoriy)', type: 'textarea', rows: 3, required: failed, value: record.qc_notes || '', attrs: 'maxlength="1000"', hint: failed ? 'Masalan: konus cho‘kishi, harorat, namuna natijasi.' : '' })}`,
     onSubmit: async (form) => {
       const notes = form.elements.qc_notes.value.trim();
