@@ -2,13 +2,14 @@
 
 Transport soni va sig'imi kodda belgilanmagan — hammasi admin paneldan kiritiladi.
 """
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -20,7 +21,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, pg_enum
+from app.models.base import Base, CreatedAtMixin, TimestampMixin, pg_enum
 from app.models.enums import DriverEmployment, TripStatus, VehicleOwnership, VehicleStatus
 
 if TYPE_CHECKING:
@@ -47,11 +48,14 @@ class Vehicle(TimestampMixin, Base):
     __tablename__ = "vehicles"
     __table_args__ = (
         CheckConstraint("capacity_m3 IS NULL OR capacity_m3 > 0", name="capacity_positive"),
+        CheckConstraint("kind IN ('mixer', 'pump', 'other')", name="kind_valid"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     plate_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
-    vehicle_type: Mapped[str] = mapped_column(String(50), nullable=False)  # mikser, nasos, ...
+    vehicle_type: Mapped[str] = mapped_column(String(50), nullable=False)  # erkin matn: "Beton mikser", "Avtonasos"...
+    # Bo'lim: mixer — mikserlar, pump — beton nasoslari, other — boshqa transport
+    kind: Mapped[str] = mapped_column(String(10), server_default="mixer", nullable=False)
     ownership: Mapped[VehicleOwnership] = mapped_column(
         pg_enum(VehicleOwnership, "vehicle_ownership"), nullable=False
     )
@@ -100,3 +104,23 @@ class OrderTrip(TimestampMixin, Base):
     order: Mapped["Order"] = relationship(back_populates="trips")
     vehicle: Mapped[Vehicle] = relationship()
     driver: Mapped[Driver | None] = relationship()
+
+
+EXPENSE_CATEGORIES = ("fuel", "repair", "tires", "insurance", "other")
+
+
+class VehicleExpense(CreatedAtMixin, Base):
+    """Transport xarajatlari (yoqilg'i, ta'mir, shina, sug'urta...). Qatnov uchun to'lov (rental_cost) alohida."""
+
+    __tablename__ = "vehicle_expenses"
+    __table_args__ = (CheckConstraint("amount > 0", name="amount_positive"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id", ondelete="CASCADE"), index=True, nullable=False)
+    expense_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    category: Mapped[str] = mapped_column(String(15), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    vehicle: Mapped[Vehicle] = relationship()

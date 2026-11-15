@@ -22,6 +22,11 @@ class Perm(StrEnum):
     PRODUCTION_READ = "production.read"
     PRODUCTION_MANAGE = "production.manage"  # reja, ishlab chiqarish yozuvlari, sifat nazorati
     PROJECTS_MANAGE = "projects.manage"    # saytdagi loyihalar va galereya
+    WAREHOUSE_READ = "warehouse.read"      # ombor qoldiqlari va harakatlari
+    WAREHOUSE_MANAGE = "warehouse.manage"  # kirim, chiqim, ko'chirish, inventarizatsiya
+    LAB_READ = "lab.read"                  # laboratoriya namunalari va sinovlar
+    LAB_MANAGE = "lab.manage"              # namuna va sinov natijalarini kiritish
+    ANALYSIS_MANAGE = "analysis.manage"    # yaxshilash choralari rejasi
 
 
 ROLE_PERMISSIONS: dict[UserRole, frozenset[Perm]] = {
@@ -30,7 +35,8 @@ ROLE_PERMISSIONS: dict[UserRole, frozenset[Perm]] = {
         Perm.DASHBOARD, Perm.ORDERS_READ, Perm.ORDERS_MANAGE, Perm.ORDERS_STATUS, Perm.CATALOG_MANAGE,
         Perm.CUSTOMERS_READ, Perm.CUSTOMERS_MANAGE, Perm.CALLBACKS_MANAGE, Perm.SETTINGS_READ,
         Perm.FLEET_READ, Perm.FLEET_MANAGE, Perm.TRIPS_MANAGE, Perm.PRODUCTION_READ, Perm.PRODUCTION_MANAGE,
-        Perm.PROJECTS_MANAGE,
+        Perm.PROJECTS_MANAGE, Perm.WAREHOUSE_READ, Perm.WAREHOUSE_MANAGE, Perm.LAB_READ, Perm.LAB_MANAGE,
+        Perm.ANALYSIS_MANAGE,
     }),
     UserRole.DISPATCHER: frozenset({
         Perm.DASHBOARD, Perm.ORDERS_READ, Perm.ORDERS_STATUS, Perm.CUSTOMERS_READ, Perm.CALLBACKS_MANAGE,
@@ -38,11 +44,12 @@ ROLE_PERMISSIONS: dict[UserRole, frozenset[Perm]] = {
     }),
     UserRole.PRODUCTION: frozenset({
         Perm.DASHBOARD, Perm.ORDERS_READ, Perm.ORDERS_STATUS, Perm.FLEET_READ,
-        Perm.PRODUCTION_READ, Perm.PRODUCTION_MANAGE,
+        Perm.PRODUCTION_READ, Perm.PRODUCTION_MANAGE, Perm.WAREHOUSE_READ, Perm.WAREHOUSE_MANAGE,
+        Perm.LAB_READ, Perm.LAB_MANAGE,
     }),
     UserRole.VIEWER: frozenset({
         Perm.DASHBOARD, Perm.ORDERS_READ, Perm.CUSTOMERS_READ, Perm.SETTINGS_READ,
-        Perm.FLEET_READ, Perm.PRODUCTION_READ,
+        Perm.FLEET_READ, Perm.PRODUCTION_READ, Perm.WAREHOUSE_READ, Perm.LAB_READ,
     }),
 }
 

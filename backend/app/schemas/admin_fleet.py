@@ -2,7 +2,7 @@
 import re
 from datetime import datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -69,6 +69,7 @@ class DriverOut(OrmModel):
 class VehicleIn(InputModel):
     plate_number: Annotated[str, Field(max_length=20)]
     vehicle_type: Annotated[str, Field(min_length=2, max_length=50)]
+    kind: Literal["mixer", "pump", "other"] = "mixer"
     ownership: VehicleOwnership
     capacity_m3: Annotated[Decimal | None, Field(default=None, gt=0, max_digits=6, decimal_places=2)]
     default_driver_id: int | None = None
@@ -102,6 +103,7 @@ class VehicleOut(OrmModel):
     id: int
     plate_number: str
     vehicle_type: str
+    kind: str
     ownership: VehicleOwnership
     capacity_m3: JsonDecimal | None
     default_driver_id: int | None

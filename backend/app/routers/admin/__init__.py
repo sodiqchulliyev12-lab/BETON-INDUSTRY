@@ -2,9 +2,9 @@
 from fastapi import APIRouter
 
 from app.routers.admin import (
-    callbacks, customers, dashboard, fleet, inbox, orders, production, products, projects, settings, telegram, trips, users,
+    callbacks, customers, dashboard, fleet, fleet_extra, inbox, lab, orders, panels, production, products, projects, settings, telegram, trips, users, warehouse,
 )
 
 router = APIRouter(prefix="/api/v1/admin")
-for module in (dashboard, orders, trips, products, customers, callbacks, fleet, production, projects, users, settings, telegram, inbox):
+for module in (dashboard, orders, trips, products, customers, callbacks, fleet, fleet_extra, production, projects, users, settings, telegram, inbox, warehouse, lab, panels):
     router.include_router(module.router)
