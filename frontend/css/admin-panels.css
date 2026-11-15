@@ -296,3 +296,41 @@
 .kpi-detail .num { text-align: right; }
 .kpi-note { color: var(--c-text-muted); font-size: var(--fs-xs); margin-top: var(--sp-3); }
 .kpi-warn { background: #fff7e0; border: 1px solid var(--c-yellow); border-radius: var(--radius-sm); padding: var(--sp-3); font-size: var(--fs-sm); margin: var(--sp-3) 0; }
+
+/* Transport analizi: kartalar bir qatorda */
+.stats--row { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1280px) { .stats--row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .stats--row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.kpi-month { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+
+/* Ombor: sahifa ichidagi yorliqlar */
+.wh-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--sp-4); padding-bottom: var(--sp-3); border-bottom: 1px solid var(--c-gray-200); }
+.wh-tabs__tab { padding: 6px 12px; font-size: var(--fs-sm); font-weight: 600; color: var(--c-text-muted); border: 1px solid var(--c-gray-200); border-radius: 999px; text-decoration: none; background: #fff; }
+.wh-tabs__tab:hover { color: var(--c-graphite); border-color: var(--c-yellow); }
+.wh-tabs__tab.is-active { color: var(--c-graphite); background: var(--c-yellow); border-color: var(--c-yellow); }
+.wh-tabs--cats { margin-top: calc(-1 * var(--sp-2)); }
+.wh-tabs__tab b { margin-left: 4px; font-weight: 800; }
+.wh-sum { list-style: none; margin: 0; padding: 0; }
+.wh-sum li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--c-gray-200); font-size: var(--fs-sm); }
+
+/* Nakladnoy (yuk xati) */
+.waybill__title { margin: 0 0 4px; text-align: center; font-size: var(--fs-lg); }
+.waybill__sub { margin: 0 0 var(--sp-3); text-align: center; color: var(--c-text-muted); font-size: var(--fs-sm); }
+.waybill__table { width: 100%; border-collapse: collapse; margin-bottom: var(--sp-3); }
+.waybill__table th, .waybill__table td { padding: 6px 8px; border: 1px solid var(--c-gray-300); text-align: left; font-size: var(--fs-sm); }
+.waybill__table th { width: 36%; background: var(--c-gray-100, #f6f6f4); }
+.waybill__sign { display: flex; justify-content: space-between; margin-top: var(--sp-5); font-size: var(--fs-sm); }
+@media print {
+  body * { visibility: hidden !important; }
+  .waybill, .waybill * { visibility: visible !important; }
+  .waybill { position: absolute; left: 0; top: 0; width: 100%; padding: 16mm; }
+}
+
+/* Hisobotlar: transport turi bo'yicha (rasm yonida) */
+.kind-report__head { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--c-gray-200); }
+.kind-report__pic { width: 150px; height: auto; flex: none; }
+.kind-report__head small { font-size: var(--fs-xs); color: var(--c-text-muted); font-weight: 600; }
+.kind-report__stats { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 6px; font-size: var(--fs-sm); color: var(--c-text-muted); }
+.kind-report__stats b { color: var(--c-graphite); }
+@media (max-width: 640px) { .kind-report__pic { width: 90px; } }
+.kpi-detail__bar { margin-bottom: 8px; }

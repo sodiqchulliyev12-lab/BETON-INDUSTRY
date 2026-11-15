@@ -43,6 +43,8 @@ class RecordIn(InputModel):
     order_id: int | None = None
     product_id: int | None = None  # reja tanlansa, marka rejadan olinadi
     batch_number: Annotated[str | None, Field(default=None, max_length=50)]
+    customer_id: int | None = None  # buyurtma tanlansa, mijoz buyurtmadan olinadi
+    vehicle_id: int | None = None   # tashuvchi mikser
     produced_volume_m3: Annotated[Decimal, Field(gt=0, max_digits=8, decimal_places=1)]
     produced_at: datetime | None = None  # bo'sh bo'lsa — hozirgi vaqt
 
@@ -71,6 +73,11 @@ class RecordOut(BaseModel):
     grade_class: str
     product_name: str
     batch_number: str | None
+    customer_id: int | None = None
+    customer_name: str | None = None
+    vehicle_id: int | None = None
+    plate_number: str | None = None
+    waybill_no: str | None = None
     produced_volume_m3: JsonDecimal
     produced_at: datetime
     qc_status: QcStatus

@@ -7,7 +7,7 @@ Sotuvchi bonusi = buyurtma uchun mijozdan tushgan pul × foiz. Foiz pul yetkazib
 o'tib kelganiga bog'liq: 10 kungacha / 20 kungacha / 30 kungacha / 30 kundan keyin. Foizlar har bir mijoz
 bo'yicha kelishiladi (kelishilmagan mijozda standart 5 / 3 / 1 / 0.5 %). Oldindan to'langan pul — 10 kun ichida.
 """
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.deps import require
-from app.models import Customer, CustomerKpiRate, Driver, Order, OrderPayment, OrderTrip, SystemSetting, User, Vehicle
+from app.models import Customer, CustomerKpiMonthRate, CustomerKpiRate, Driver, Order, OrderPayment, OrderTrip, SystemSetting, User, Vehicle
 from app.models.enums import OrderStatus, TripStatus
 from app.permissions import Perm
 from app.schemas.common import InputModel, clean_text
@@ -47,9 +47,32 @@ def _check_period(date_from: date, date_to: date) -> None:
         raise _422("date_to", "Davr 400 kundan oshmasligi kerak.")
 
 
-def driver_bonus_rate(db: Session) -> float:
-    value = db.scalar(select(SystemSetting.value).where(SystemSetting.key == DRIVER_BONUS_KEY))
-    return float(value) if value else DEFAULT_DRIVER_BONUS
+def _month_key(month: date) -> str:
+    return f"{DRIVER_BONUS_KEY}.{month:%Y-%m}"
+
+
+def _parse_month(value: str | None) -> date | None:
+    if not value:
+        return None
+    try:
+        y, m = value.split("-")
+        return date(int(y), int(m), 1)
+    except (ValueError, TypeError):
+        raise _422("month", "Oyni YYYY-OO ko‘rinishida kiriting.") from None
+
+
+def driver_bonus_rate(db: Session, month: date | None = None) -> float:
+    """Bir reys uchun bonus: shu oy uchun belgilangan summa, bo'lmasa umumiy, bo'lmasa 10 000 so'm."""
+    keys = ([_month_key(month)] if month else []) + [DRIVER_BONUS_KEY]
+    found = dict(db.execute(select(SystemSetting.key, SystemSetting.value).where(SystemSetting.key.in_(keys))).all())
+    for k in keys:
+        if found.get(k):
+            return float(found[k])
+    return DEFAULT_DRIVER_BONUS
+
+
+def month_start(d: date) -> date:
+    return d.replace(day=1)
 
 
 def tier_index(days: int) -> int:
@@ -80,23 +103,29 @@ def split_payments(delivery: date, amount: float | None, payments: list) -> list
 
 class ConfigIn(InputModel):
     driver_bonus_per_trip: Annotated[Decimal, Field(gt=0, le=10_000_000, max_digits=12, decimal_places=2)]
+    month: Annotated[str | None, Field(default=None, max_length=7)]  # YYYY-OO; bo'sh — barcha oylar uchun umumiy
 
 
 @router.get("/config")
-def get_config(db: Session = Depends(get_db), _: User = Depends(require(Perm.KPI_MANAGE))):
-    return {"driver_bonus_per_trip": driver_bonus_rate(db), "default_rates": DEFAULT_RATES}
+def get_config(month: str | None = None, db: Session = Depends(get_db), _: User = Depends(require(Perm.KPI_MANAGE))):
+    m = _parse_month(month)
+    is_set = bool(m and db.scalar(select(SystemSetting.value).where(SystemSetting.key == _month_key(m))))
+    return {"driver_bonus_per_trip": driver_bonus_rate(db, m), "month": m.strftime("%Y-%m") if m else None, "month_is_set": is_set,
+            "default_rates": DEFAULT_RATES}
 
 
 @router.put("/config")
 def put_config(payload: ConfigIn, db: Session = Depends(get_db), user: User = Depends(require(Perm.KPI_MANAGE))):
-    row = db.get(SystemSetting, DRIVER_BONUS_KEY)
+    m = _parse_month(payload.month)
+    key = _month_key(m) if m else DRIVER_BONUS_KEY
+    row = db.get(SystemSetting, key)
     if row is None:
-        row = SystemSetting(key=DRIVER_BONUS_KEY, is_public=False, description="Haydovchiga bir reys uchun bonus (so'm)")
+        row = SystemSetting(key=key, is_public=False, description="Haydovchiga bir reys uchun bonus (so'm)")
         db.add(row)
     row.value = float(payload.driver_bonus_per_trip)
     row.updated_by_id = user.id
     db.commit()
-    return get_config(db, user)
+    return get_config(payload.month, db, user)
 
 
 # --- Haydovchilar: reys × bonus ---------------------------------------------------
@@ -107,7 +136,15 @@ def drivers_report(date_from: date, date_to: date, kind: Literal["mixer", "pump"
                    db: Session = Depends(get_db), _: User = Depends(require(Perm.KPI_MANAGE))):
     """«Mikserlar qatnovi bo'yicha hisobot»: haydovchi, davlat raqami, reys, hajm, bonus. Faqat yetkazilgan reyslar."""
     _check_period(date_from, date_to)
-    rate = driver_bonus_rate(db)
+    rates_by_month: dict[date, float] = {}
+
+    def rate_of(d: date) -> float:
+        m = month_start(d)
+        if m not in rates_by_month:
+            rates_by_month[m] = driver_bonus_rate(db, m)
+        return rates_by_month[m]
+
+    rate = rate_of(date_to)
     q = (select(OrderTrip, Order, Vehicle, Customer).join(Order, Order.id == OrderTrip.order_id)
          .join(Vehicle, Vehicle.id == OrderTrip.vehicle_id).join(Customer, Customer.id == Order.customer_id)
          .where(Order.delivery_date >= date_from, Order.delivery_date <= date_to, OrderTrip.status != TripStatus.CANCELLED))
@@ -120,6 +157,7 @@ def drivers_report(date_from: date, date_to: date, kind: Literal["mixer", "pump"
     names = dict(db.execute(select(Driver.id, Driver.full_name)).all())
     rows: dict[tuple, dict] = {}
     clients: dict[int, dict] = {}
+    details: list[dict] = []
     pending = 0
     for trip, order, vehicle, customer in db.execute(q):
         if trip.status != TripStatus.DELIVERED:
@@ -127,9 +165,19 @@ def drivers_report(date_from: date, date_to: date, kind: Literal["mixer", "pump"
             continue
         key = (trip.driver_id, trip.vehicle_id)
         r = rows.setdefault(key, {"driver_id": trip.driver_id, "driver": names.get(trip.driver_id), "vehicle_id": trip.vehicle_id,
-                                  "plate_number": vehicle.plate_number, "kind": vehicle.kind, "trips": 0, "volume_m3": 0.0})
+                                  "plate_number": vehicle.plate_number, "kind": vehicle.kind, "trips": 0, "volume_m3": 0.0,
+                                  "bonus": 0.0, "rates": set()})
         r["trips"] += 1
         r["volume_m3"] += _f(trip.volume_m3)
+        trip_rate = rate_of(order.delivery_date)
+        r["rates"].add(trip_rate)
+        if trip.driver_id:  # haydovchi belgilanmagan reysga bonus yozilmaydi
+            r["bonus"] += trip_rate
+        if driver_id or vehicle_id:
+            details.append({"date": order.delivery_date.isoformat(), "order_id": order.id, "order_number": order.order_number,
+                            "customer": customer.company_name or customer.full_name, "address": order.delivery_address if order.delivery_required else None,
+                            "grade": ", ".join(sorted({i.grade_class for i in order.items})), "plate_number": vehicle.plate_number,
+                            "driver": names.get(trip.driver_id), "volume_m3": _f(trip.volume_m3)})
         c = clients.setdefault(customer.id, {"customer_id": customer.id, "name": customer.company_name or customer.full_name, "contact": customer.full_name,
                                              "phone": customer.phone, "trips": 0, "volume_m3": 0.0, "orders": set()})
         c["trips"] += 1
@@ -137,8 +185,9 @@ def drivers_report(date_from: date, date_to: date, kind: Literal["mixer", "pump"
         c["orders"].add(order.id)
     out = []
     for r in sorted(rows.values(), key=lambda x: ((x["driver"] or "~").lower(), x["plate_number"])):
-        r["bonus_per_trip"] = rate
-        r["bonus"] = round(r["trips"] * rate, 2) if r["driver_id"] else 0.0  # haydovchi belgilanmagan reysga bonus yozilmaydi
+        r["bonus_per_trip"] = next(iter(r["rates"])) if len(r["rates"]) == 1 else None  # oylar bo'yicha har xil bo'lsa — None
+        del r["rates"]
+        r["bonus"] = round(r["bonus"], 2)
         r["volume_m3"] = round(r["volume_m3"], 2)
         out.append(r)
     client_rows = []
@@ -148,7 +197,9 @@ def drivers_report(date_from: date, date_to: date, kind: Literal["mixer", "pump"
             c["volume_m3"] = round(c["volume_m3"], 2)
             client_rows.append(c)
     return {
-        "date_from": date_from.isoformat(), "date_to": date_to.isoformat(), "bonus_per_trip": rate, "rows": out,
+        "date_from": date_from.isoformat(), "date_to": date_to.isoformat(), "bonus_per_trip": rate,
+        "month": month_start(date_to).strftime("%Y-%m"), "rows": out,
+        "details": sorted(details, key=lambda x: (x["date"], x["order_number"])),
         "totals": {"trips": sum(r["trips"] for r in out), "volume_m3": round(sum(r["volume_m3"] for r in out), 2), "bonus": round(sum(r["bonus"] for r in out), 2)},
         "clients": client_rows, "pending_trips": pending,
         "unassigned_trips": sum(r["trips"] for r in out if not r["driver_id"]),
@@ -157,10 +208,13 @@ def drivers_report(date_from: date, date_to: date, kind: Literal["mixer", "pump"
 
 # --- Sotuvchilar: pul tushish muddatiga qarab foiz -----------------------------------
 
-def _rates_for(rate_row) -> dict:
+def _rates_for(rate_row, month_row=None) -> dict:
+    """Foiz: shu oy uchun belgilangan (tasdiqlangan) → mijoz bo'yicha doimiy → standart."""
+    if month_row is not None:
+        return {**{k: _f(getattr(month_row, k)) for k in TIERS}, "custom": True, "source": "month", "approved": month_row.approved_at is not None}
     if rate_row is None:
-        return {**DEFAULT_RATES, "custom": False}
-    return {**{k: _f(getattr(rate_row, k)) for k in TIERS}, "custom": True}
+        return {**DEFAULT_RATES, "custom": False, "source": "default", "approved": False}
+    return {**{k: _f(getattr(rate_row, k)) for k in TIERS}, "custom": True, "source": "customer", "approved": False}
 
 
 @router.get("/sales")
@@ -182,6 +236,8 @@ def sales_report(date_from: date, date_to: date, manager_id: int | None = None, 
         for p in db.scalars(select(OrderPayment).where(OrderPayment.order_id.in_(ids)).order_by(OrderPayment.paid_on, OrderPayment.id)):
             pays.setdefault(p.order_id, []).append(p)
     rates = {r.customer_id: r for r in db.scalars(select(CustomerKpiRate))}
+    month_rates = {(r.month, r.customer_id): r for r in db.scalars(select(CustomerKpiMonthRate).where(
+        CustomerKpiMonthRate.month >= month_start(date_from), CustomerKpiMonthRate.month <= month_start(date_to)))}
     managers = {u.id: u.full_name for u in db.scalars(select(User))}
 
     groups: dict[tuple, dict] = {}
@@ -194,7 +250,7 @@ def sales_report(date_from: date, date_to: date, manager_id: int | None = None, 
         plist = pays.get(o.id, [])
         paid = sum(_f(p.amount) for p in plist)
         tiers = split_payments(o.delivery_date, amount, plist)
-        rate = _rates_for(rates.get(o.customer_id))
+        rate = _rates_for(rates.get(o.customer_id), month_rates.get((month_start(o.delivery_date), o.customer_id)))
         bonus = sum(t * rate[k] / 100 for t, k in zip(tiers, TIERS))
         g = groups.setdefault((o.manager_id, o.customer_id), {
             "manager_id": o.manager_id, "manager": managers.get(o.manager_id), "customer_id": o.customer_id,
@@ -238,7 +294,16 @@ def sales_report(date_from: date, date_to: date, manager_id: int | None = None, 
                    "paid": round(sum(g["paid"] for g in rows), 2), "unpaid": round(sum(g["unpaid"] for g in rows), 2),
                    "bonus": round(sum(g["bonus"] for g in rows), 2), "orders": len(orders), "no_price_orders": no_price,
                    "unassigned_orders": sum(1 for o in orders if o.manager_id is None)},
+        "month_status": _month_status(db, month_start(date_to)),
     }
+
+
+def _month_status(db: Session, month: date) -> dict:
+    rows = list(db.scalars(select(CustomerKpiMonthRate).where(CustomerKpiMonthRate.month == month)))
+    approved = [r for r in rows if r.approved_at is not None]
+    latest = max((r.approved_at for r in approved), default=None)
+    return {"month": month.strftime("%Y-%m"), "customers": len(rows), "approved": len(approved),
+            "approved_at": latest.isoformat() if latest else None}
 
 
 # --- Yozish: to'lov, sotuvchi, foizlar ------------------------------------------------
@@ -313,9 +378,24 @@ class RatesIn(InputModel):
 
 
 @router.put("/customers/{customer_id}/rates")
-def put_rates(customer_id: int, payload: RatesIn, db: Session = Depends(get_db), _: User = Depends(require(Perm.KPI_MANAGE))):
+def put_rates(customer_id: int, payload: RatesIn, month: str | None = None, db: Session = Depends(get_db),
+              _: User = Depends(require(Perm.KPI_MANAGE))):
+    """Mijoz foizi. `month` berilsa — faqat shu oy uchun (tasdiqlangan oyni o'zgartirib bo'lmaydi); bo'lmasa — doimiy."""
     if db.get(Customer, customer_id) is None:
         raise HTTPException(status_code=404, detail="Mijoz topilmadi.")
+    m = _parse_month(month)
+    if m is not None:
+        mrow = db.get((CustomerKpiMonthRate), (m, customer_id))
+        if mrow is not None and mrow.approved_at is not None:
+            raise HTTPException(status_code=409, detail="Bu oy foizlari tasdiqlangan. O‘zgartirish uchun avval tasdiqni bekor qiling.")
+        if mrow is None:
+            mrow = CustomerKpiMonthRate(month=m, customer_id=customer_id, **payload.model_dump())
+            db.add(mrow)
+        else:
+            for k, v in payload.model_dump().items():
+                setattr(mrow, k, v)
+        db.commit()
+        return {"customer_id": customer_id, "month": m.strftime("%Y-%m"), **{k: _f(v) for k, v in payload.model_dump().items()}, "custom": True}
     row = db.get(CustomerKpiRate, customer_id)
     if row is None:
         row = CustomerKpiRate(customer_id=customer_id, **payload.model_dump())
@@ -328,9 +408,60 @@ def put_rates(customer_id: int, payload: RatesIn, db: Session = Depends(get_db),
 
 
 @router.delete("/customers/{customer_id}/rates", status_code=status.HTTP_204_NO_CONTENT)
-def reset_rates(customer_id: int, db: Session = Depends(get_db), _: User = Depends(require(Perm.KPI_MANAGE))):
+def reset_rates(customer_id: int, month: str | None = None, db: Session = Depends(get_db), _: User = Depends(require(Perm.KPI_MANAGE))):
+    m = _parse_month(month)
+    if m is not None:
+        mrow = db.get(CustomerKpiMonthRate, (m, customer_id))
+        if mrow is not None:
+            if mrow.approved_at is not None:
+                raise HTTPException(status_code=409, detail="Bu oy foizlari tasdiqlangan. Avval tasdiqni bekor qiling.")
+            db.delete(mrow)
+            db.commit()
+        return Response(status_code=204)
     row = db.get(CustomerKpiRate, customer_id)
     if row is not None:
         db.delete(row)
         db.commit()
     return Response(status_code=204)
+
+
+# --- Oy foizlarini tasdiqlash -------------------------------------------------------------
+
+class ApproveIn(InputModel):
+    month: Annotated[str, Field(max_length=7)]
+
+
+@router.post("/rates/approve")
+def approve_month(payload: ApproveIn, db: Session = Depends(get_db), user: User = Depends(require(Perm.KPI_MANAGE))):
+    """Oy foizlarini tasdiqlaydi: shu oy yetkazilgan buyurtmasi bor har bir mijozning amaldagi foizi qotiriladi.
+    Keyin standart yoki doimiy foiz o'zgarsa ham, tasdiqlangan oy hisobi o'zgarmaydi."""
+    m = _parse_month(payload.month)
+    if m is None:
+        raise _422("month", "Oyni kiriting.")
+    nxt = date(m.year + (m.month // 12), m.month % 12 + 1, 1)
+    customer_ids = set(db.scalars(select(Order.customer_id).where(
+        Order.delivery_date >= m, Order.delivery_date < nxt, Order.status == OrderStatus.DELIVERED)))
+    existing = {r.customer_id: r for r in db.scalars(select(CustomerKpiMonthRate).where(CustomerKpiMonthRate.month == m))}
+    baseline = {r.customer_id: r for r in db.scalars(select(CustomerKpiRate))}
+    customer_ids |= set(existing)
+    now = datetime.now(UTC)
+    for cid in customer_ids:
+        row = existing.get(cid)
+        if row is None:
+            base = _rates_for(baseline.get(cid))
+            row = CustomerKpiMonthRate(month=m, customer_id=cid, **{k: base[k] for k in TIERS})
+            db.add(row)
+        row.approved_at = now
+        row.approved_by_id = user.id
+    db.commit()
+    return _month_status(db, m)
+
+
+@router.delete("/rates/approve/{month}", status_code=status.HTTP_200_OK)
+def unapprove_month(month: str, db: Session = Depends(get_db), _: User = Depends(require(Perm.KPI_MANAGE))):
+    m = _parse_month(month)
+    for row in db.scalars(select(CustomerKpiMonthRate).where(CustomerKpiMonthRate.month == m)):
+        row.approved_at = None
+        row.approved_by_id = None
+    db.commit()
+    return _month_status(db, m)

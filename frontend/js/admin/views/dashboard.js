@@ -240,7 +240,7 @@ export async function render({ root, isCurrent, query }) {
     : stat({ label: 'Kunlik ishlab chiqarish quvvati', value: vol(capacity), hint: `Bugun rejada: ${escapeHtml(volume(data.today.volume_m3))}` });
 
   root.innerHTML = `
-    <div class="page-actions">${rangeBar({ from: addDays(to, -(span - 1)), to, label: 'Grafik davri' })}<span class="text-muted">Davr (7–365 kun) faqat grafikka ta’sir qiladi; kartalar — umumiy holat.</span></div>
+    <div class="page-actions">${rangeBar({ from: addDays(to, -(span - 1)), to, label: 'Grafik davri' })}</div><p class="text-muted">Davr (7–365 kun) faqat grafikka ta’sir qiladi; kartalar — umumiy holat.</p>
     <div class="stats">
       ${stat({ label: 'Jami buyurtmalar', value: t.orders, href: '#/orders' })}
       ${stat({ label: 'Yangi', value: t.new, tone: 'accent', href: '#/orders?status=new', hint: 'Tasdiqlash kutilmoqda' })}

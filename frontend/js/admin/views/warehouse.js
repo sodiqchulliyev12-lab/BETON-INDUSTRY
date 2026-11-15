@@ -32,10 +32,8 @@ const badge = (s) => `<span class="status status--${escapeHtml(s)}">${escapeHtml
 const PAGES = {
   warehouse: { title: 'Ombor boshqaruvi' },
   materials: { title: 'Xomashyo' },
-  finished: { title: 'Tayyor mahsulot' },
   input: { title: 'Kirim', kind: 'input', add: 'in' },
   output: { title: 'Chiqim', kind: 'output', add: 'out' },
-  release: { title: 'Ishlab chiqarishga berish', kind: 'release', add: 'production' },
   transfers: { title: 'Omborlar aro harakat', kind: 'transfer' },
   inventory: { title: 'Inventarizatsiya' },
   suppliers: { title: 'Ta’minotchilar' },
@@ -66,14 +64,31 @@ const monthStart = () => `${todayISO().slice(0, 8)}01`;
 const warehouseOptions = (list, all = true) => (all ? [{ value: '', label: 'Barcha omborlar' }] : []).concat(list.filter((w) => w.is_active).map((w) => ({ value: w.id, label: w.name })));
 const categoryOptions = (all = true) => (all ? [{ value: '', label: 'Barcha turlar' }] : []).concat(Object.entries(CATEGORY).map(([value, label]) => ({ value, label })));
 
+/** Yon menyudan olib tashlangan bo'limlar sahifa ichida yorliq bo'lib turadi */
+const TABS = [['materials', 'Xomashyo'], ['input', 'Kirim'], ['output', 'Chiqim'], ['transfers', 'Omborlar aro harakat'], ['inventory', 'Inventarizatsiya'],
+  ['suppliers', 'Ta’minotchilar'], ['history', 'Material tarixi'], ['wh-report', 'Ombor hisobotlari'], ['warehouses', 'Omborlar']];
+function tabStrip(route, categories = null) {
+  const current = route.startsWith('materials') ? 'materials' : route;
+  const cat = route.startsWith('materials/') ? route.split('/')[1] : '';
+  const stock = (k) => Object.entries(categories?.[k]?.stock || {}).map(([u, v]) => `${nf(v)} ${unitOf(u)}`).join(' + ');
+  const cats = route.startsWith('materials') || route === 'warehouse'
+    ? `<nav class="wh-tabs wh-tabs--cats" aria-label="Xomashyo turlari"><a class="wh-tabs__tab${current === 'materials' && !cat ? ' is-active' : ''}" href="#/materials">Barchasi</a>${
+      Object.entries(CATEGORY).map(([k, l]) => `<a class="wh-tabs__tab${cat === k ? ' is-active' : ''}" href="#/materials/${k}">${escapeHtml(l)}${categories ? ` <b>${escapeHtml(stock(k) || '0')}</b>` : ''}</a>`).join('')}</nav>` : '';
+  return `<nav class="wh-tabs" aria-label="Ombor bo‘limlari">${TABS.map(([r, l]) => `<a class="wh-tabs__tab${r === current ? ' is-active' : ''}" href="#/${r}">${escapeHtml(l)}</a>`).join('')}</nav>${cats}`;
+}
+
 export async function render(ctx) {
   const route = ctx.meta.route;
   const key = route.startsWith('materials') ? 'materials' : route;
   ctx.setTitle(PAGES[key]?.title || 'Ombor');
-  ctx.root.innerHTML = '<div id="pageBody"></div>';
+  let categories = null;
+  try {
+    categories = (await http('/admin/warehouse/summary')).categories;
+  } catch { /* yorliqlar qoldiqsiz ko'rsatiladi */ }
+  ctx.root.innerHTML = `${tabStrip(route, categories)}<div id="pageBody"></div>`;
   const holder = ctx.root.querySelector('#pageBody');
   const handlers = {
-    warehouse: dashboard, materials: materialsPage, finished, input: movementsPage, output: movementsPage, release: movementsPage,
+    warehouse: dashboard, materials: materialsPage, input: movementsPage, output: movementsPage,
     transfers: movementsPage, history: movementsPage, inventory, suppliers, 'wh-report': reportPage, warehouses,
   };
   return handlers[key](ctx, holder, key);
@@ -140,10 +155,34 @@ async function materialsPage(ctx, holder) {
   if (cat) ctx.setTitle(CATEGORY[cat] || 'Xomashyo');
   await load(ctx, holder, () => Promise.all([
     http(`/admin/warehouse/materials${qs({ warehouse_id: wid, category: cat, date_from: from, date_to: to })}`), http('/admin/warehouse/warehouses'),
-  ]), ([mats, warehouses]) => {
-    holder.innerHTML = `${filterBar({ warehouses, wid, category: cat, from, to, showCategory: false, extra: `<span class="page-actions__spacer"></span>${canManage ? `<button class="btn btn--primary" data-add-material>${icon('i-plus')} ${cat ? `${escapeHtml(CATEGORY[cat])} qo‘shish` : 'Xomashyo qo‘shish'}</button>` : ''}` })}${materialTable(mats.items, canManage)}`;
+    http(`/admin/warehouse/movements${qs({ warehouse_id: wid, date_from: from, date_to: to })}`),
+  ]), ([mats, warehouses, moves]) => {
+    const names = new Set(mats.items.map((m) => m.name));
+    const mv = moves.items.filter((x) => names.has(x.material));
+    const ins = mv.filter((x) => x.quantity > 0 && (x.kind === 'in' || x.kind === 'opening'));
+    const outs = mv.filter((x) => x.quantity < 0 && (x.kind === 'out' || x.kind === 'production'));
+    const bySupplier = {};
+    ins.forEach((x) => {
+      const key = `${x.supplier || 'Ta’minotchi ko‘rsatilmagan'}|${x.unit}`;
+      bySupplier[key] = (bySupplier[key] || 0) + x.quantity;
+    });
+    const actions = canManage ? `<button class="btn btn--primary" data-in>${icon('i-plus')} Kirim</button><button class="btn btn--outline" data-out>${icon('i-plus')} Chiqim</button>
+      <button class="btn btn--outline" data-add-material>${icon('i-plus')} ${cat ? `${escapeHtml(CATEGORY[cat])} qo‘shish` : 'Xomashyo qo‘shish'}</button>` : '';
+    holder.innerHTML = `${filterBar({ warehouses, wid, category: cat, from, to, showCategory: false, extra: actions })}${materialTable(mats.items, canManage)}
+      ${cat ? `<div class="admin-grid admin-grid--2 mt-5">
+        <section class="box"><div class="box__head"><h2 class="box__title">Kirim: kimdan qancha kelgan</h2></div>
+          ${Object.keys(bySupplier).length ? `<div class="box__body"><ul class="wh-sum">${Object.entries(bySupplier).map(([k, v]) => { const [n, u] = k.split('|'); return `<li><span>${escapeHtml(n)}</span><b>${nf(v)} ${escapeHtml(unitOf(u))}</b></li>`; }).join('')}</ul></div>` : ''}
+          <div class="table-wrap"><table class="table"><thead><tr><th>Sana</th><th>Ta’minotchi</th><th>Material</th><th class="num">Miqdor</th></tr></thead>
+          <tbody>${ins.length ? ins.map((x) => `<tr><td class="nowrap">${escapeHtml(fmtDate(x.movement_date))}</td><td>${escapeHtml(x.supplier || '—')}${x.document_no ? `<br><span class="muted">${escapeHtml(x.document_no)}</span>` : ''}</td><td>${escapeHtml(x.material)}</td><td class="num text-success">+${nf(x.quantity)} ${escapeHtml(unitOf(x.unit))}</td></tr>`).join('') : emptyRow(4, 'Bu davrda kirim yo‘q.')}</tbody></table></div></section>
+        <section class="box"><div class="box__head"><h2 class="box__title">Chiqim</h2></div>
+          <div class="table-wrap"><table class="table"><thead><tr><th>Sana</th><th>Material</th><th class="num">Miqdor</th><th>Izoh</th></tr></thead>
+          <tbody>${outs.length ? outs.map((x) => `<tr><td class="nowrap">${escapeHtml(fmtDate(x.movement_date))}</td><td>${escapeHtml(x.material)}</td><td class="num text-danger">${nf(x.quantity)} ${escapeHtml(unitOf(x.unit))}</td><td>${escapeHtml(x.note || '')}</td></tr>`).join('') : emptyRow(4, 'Bu davrda chiqim yo‘q.')}</tbody></table></div></section></div>` : ''}`;
     bindFilters(holder);
-    bindMaterialActions(holder, mats.items, () => materialsPage(ctx, holder), canManage, cat);
+    const reload = () => materialsPage(ctx, holder);
+    bindMaterialActions(holder, mats.items, reload, canManage, cat);
+    const quick = (kind) => async () => movementForm(kind, await lookups(), () => materialsPage(ctx, holder));
+    holder.querySelector('[data-in]')?.addEventListener('click', quick('in'));
+    holder.querySelector('[data-out]')?.addEventListener('click', quick('out'));
   });
 }
 
@@ -195,18 +234,6 @@ function materialForm(m, onSaved, defaultCat = '') {
     });
     close.element.querySelector('.modal__actions').prepend(del);
   }
-}
-
-/* ------------------------------------------------------------ Tayyor mahsulot */
-
-async function finished(ctx, holder) {
-  await load(ctx, holder, () => http('/admin/warehouse/finished'), ({ items }) => {
-    holder.innerHTML = `<section class="box"><div class="box__body"><p class="text-muted">Tayyor beton omborda saqlanmaydi — u buyurtmaga ishlab chiqariladi va yetkaziladi. Quyida markalar bo‘yicha ishlab chiqarilgan va yetkazilgan hajm.</p></div>
-      <div class="table-wrap"><table class="table"><thead><tr><th>Marka</th><th class="num">Ishlab chiqarilgan</th><th class="num">Sifatdan o‘tgan</th><th class="num">Yetkazilgan</th><th class="num">Ochiq buyurtmalar</th></tr></thead>
-      <tbody>${items.length ? items.map((r) => `<tr><td><strong>${escapeHtml(r.name)}</strong> <span class="muted">${escapeHtml(r.grade_class)}</span>${r.is_demo ? ' <span class="badge">DEMO</span>' : ''}</td>
-        <td class="num">${nf(r.produced_m3, 2)} m³</td><td class="num">${nf(r.qc_passed_m3, 2)} m³</td><td class="num">${nf(r.delivered_m3, 2)} m³</td><td class="num">${nf(r.open_orders_m3, 2)} m³</td></tr>`).join('')
-    : emptyRow(5, 'Hali ishlab chiqarish yoki buyurtma yo‘q.')}</tbody></table></div></section>`;
-  });
 }
 
 /* ------------------------------------------------------------ Harakatlar (kirim, chiqim, ...) */

@@ -4,7 +4,8 @@ from app.models.callback import CallbackRequest
 from app.models.customer import Customer
 from app.models.fleet import Driver, OrderTrip, TaxiRide, Vehicle, VehicleBreakdown, VehicleExpense, VehicleWorkLog
 from app.models.improvement import ImprovementAction
-from app.models.kpi import CustomerKpiRate, OrderPayment
+from app.models.kpi import CustomerKpiMonthRate, CustomerKpiRate, OrderPayment
+from app.models.sales import ConcreteReturn
 from app.models.lab import LabSample, LabTest
 from app.models.notification import NotificationLog
 from app.models.order import Order, OrderItem, OrderStatusHistory, order_number_seq
@@ -22,6 +23,8 @@ __all__ = [
     "ConcretePrice",
     "ConcreteProduct",
     "Customer",
+    "ConcreteReturn",
+    "CustomerKpiMonthRate",
     "CustomerKpiRate",
     "Driver",
     "ImprovementAction",

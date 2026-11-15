@@ -10,11 +10,10 @@ export async function render(ctx) {
   const canManage = session.can(PERM.CATALOG_MANAGE);
   root.innerHTML = `
     <div class="page-actions">
-      <p class="text-muted">Saytdagi katalog shu ro‘yxatdan olinadi. Nofaol markalar saytda ko‘rinmaydi;
-        "sotuvda emas" markalar ko‘rinadi, lekin buyurtma qilib bo‘lmaydi.</p>
-      <span class="page-actions__spacer"></span>
       ${canManage ? `<button type="button" class="btn btn--primary" data-action="create">${icon('i-plus')} Yangi marka</button>` : ''}
     </div>
+    <p class="text-muted">Saytdagi katalog shu ro‘yxatdan olinadi. Nofaol markalar saytda ko‘rinmaydi;
+      "sotuvda emas" markalar ko‘rinadi, lekin buyurtma qilib bo‘lmaydi.</p>
     <section class="box" id="productsBox">${loadingHtml()}</section>`;
 
   root.querySelector('[data-action=create]')?.addEventListener('click', () => productForm(null, () => render(ctx)));

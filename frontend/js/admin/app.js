@@ -34,7 +34,6 @@ const NAV = [
       { route: 'pumps', label: 'Beton nasoslari', view: 'fleet-kind', kind: 'pump' },
       { route: 'others', label: 'Yuk avtomobillari', view: 'fleet-kind', kind: 'other' },
       { route: 'cars', label: 'Yengil avtomobillar', view: 'fleet-kind', kind: 'car' },
-      { route: 'planning', label: 'Logistika rejalashtirish' },
       { route: 'trips', label: 'Qatnovlar (haydovchi / mashina)', view: 'transport' },
       { route: 'expenses', label: 'Xarajatlar' },
       { route: 'fuel', label: 'Yoqilg‘i hisoboti', view: 'transport' },
@@ -43,25 +42,23 @@ const NAV = [
     ] },
     { route: 'warehouse', label: 'Ombor', icon: 'i-warehouse', perm: PERM.WAREHOUSE_READ, children: [
       { route: 'materials', label: 'Xomashyo', view: 'warehouse' },
-      ...WH_CATEGORIES.map(([key, label]) => ({ route: `materials/${key}`, label, view: 'warehouse', level: 2 })),
-      { route: 'finished', label: 'Tayyor mahsulot', view: 'warehouse' },
-      { route: 'input', label: 'Kirim', view: 'warehouse' },
-      { route: 'output', label: 'Chiqim', view: 'warehouse' },
-      { route: 'release', label: 'Ishlab chiqarishga berish', view: 'warehouse' },
-      { route: 'transfers', label: 'Omborlar aro harakat', view: 'warehouse' },
-      { route: 'inventory', label: 'Inventarizatsiya', view: 'warehouse' },
-      { route: 'suppliers', label: 'Ta’minotchilar', view: 'warehouse' },
-      { route: 'history', label: 'Material tarixi', view: 'warehouse' },
-      { route: 'wh-report', label: 'Ombor hisobotlari', view: 'warehouse' },
+      ...WH_CATEGORIES.map(([key, label]) => ({ route: `materials/${key}`, label, view: 'warehouse', level: 2, hidden: true })),
+      { route: 'input', label: 'Kirim', view: 'warehouse', hidden: true },
+      { route: 'output', label: 'Chiqim', view: 'warehouse', hidden: true },
+      { route: 'transfers', label: 'Omborlar aro harakat', view: 'warehouse', hidden: true },
+      { route: 'inventory', label: 'Inventarizatsiya', view: 'warehouse', hidden: true },
+      { route: 'suppliers', label: 'Ta’minotchilar', view: 'warehouse', hidden: true },
+      { route: 'history', label: 'Material tarixi', view: 'warehouse', hidden: true },
+      { route: 'wh-report', label: 'Ombor hisobotlari', view: 'warehouse', hidden: true },
       { route: 'warehouses', label: 'Omborlar', view: 'warehouse' },
     ] },
     { route: 'production-panel', label: 'Ishlab chiqarish', icon: 'i-factory', perm: PERM.PRODUCTION_READ, children: [
       { route: 'production', label: 'Reja va yozuvlar' },
     ] },
     { route: 'lab', label: 'Laboratoriya', icon: 'i-flask', perm: PERM.LAB_READ },
-    { route: 'kpi', label: 'KPI va bonus', icon: 'i-calc', perm: PERM.KPI_MANAGE, children: [
-      { route: 'kpi-drivers', label: 'Haydovchilar (reys bonusi)', view: 'kpi' },
-      { route: 'kpi-sales', label: 'Sotuvchilar KPI', view: 'kpi' },
+    { route: 'sales', label: 'Sotuv', icon: 'i-calc', perm: PERM.ORDERS_READ, children: [
+      { route: 'sales-overview', label: 'Ishlab chiqarish → sotuv', view: 'sales' },
+      { route: 'kpi-sales', label: 'Sotuvchilar hisoboti', view: 'kpi', perm: PERM.KPI_MANAGE },
     ] },
     { route: 'projects', label: 'Loyihalar va galereya', icon: 'i-image', perm: PERM.PROJECTS_MANAGE },
   ] },
@@ -93,7 +90,6 @@ const VIEWS = {
   vehicles: () => import('./views/vehicles.js'),
   transport: () => import('./views/transport.js'),
   'fleet-kind': () => import('./views/fleet-kind.js'),
-  planning: () => import('./views/transport.js'),
   expenses: () => import('./views/transport.js'),
   'fleet-report': () => import('./views/transport.js'),
   drivers: () => import('./views/drivers.js'),
@@ -102,6 +98,7 @@ const VIEWS = {
   production: () => import('./views/production.js'),
   lab: () => import('./views/lab.js'),
   kpi: () => import('./views/kpi.js'),
+  sales: () => import('./views/sales.js'),
   analysis: () => import('./views/analysis.js'),
   projects: () => import('./views/projects.js'),
   telegram: () => import('./views/telegram.js'),
@@ -117,6 +114,7 @@ const el = {
   nav: document.getElementById('adminNav'),
   view: document.getElementById('view'),
   title: document.getElementById('pageTitle'),
+  tools: document.getElementById('pageTools'),
   userName: document.getElementById('userName'),
   userRole: document.getElementById('userRole'),
   logout: document.getElementById('logoutBtn'),
@@ -125,6 +123,26 @@ const el = {
 };
 
 let renderToken = 0;
+
+/**
+ * Sahifadagi filtr va tugmalar paneli (.page-actions, .kind-head__actions) sarlavha qatoriga ko'tariladi.
+ * Hodisa tinglovchilari ko'chirilganda saqlanadi; bo'lim qayta chizilsa, yangi panel eskisining o'rniga qo'yiladi.
+ */
+const TOOL_SELECTOR = ':scope .page-actions, :scope .kind-head__actions';
+const nativeAll = Element.prototype.querySelectorAll;
+const nativeOne = Element.prototype.querySelector;
+function hoistTools() {
+  const found = [...nativeAll.call(el.view, TOOL_SELECTOR)].filter((n) => !n.closest('.modal, dialog'));
+  if (found.length) el.tools.replaceChildren(...found);
+}
+new MutationObserver(hoistTools).observe(el.view, { childList: true, subtree: true });
+// Bo'limlar tugmalarni `root.querySelector(...)` bilan topadi: ko'tarilgan panel ham shu qidiruvga kiradi
+el.view.querySelector = function viewQuery(selector) {
+  return nativeOne.call(this, selector) || nativeOne.call(el.tools, selector);
+};
+el.view.querySelectorAll = function viewQueryAll(selector) {
+  return [...nativeAll.call(this, selector), ...nativeAll.call(el.tools, selector)];
+};
 
 /* ==========================================================================
    Ekranlar
@@ -171,10 +189,12 @@ function renderNav() {
     return `<div class="admin-nav__group">${escapeHtml(group.group)}</div>${items.map((item) => {
       if (!item.children) return navLink(item);
       return `${navLink(item)}<div class="admin-nav__sub" data-parent="${item.route}" hidden>${
-        item.children.map((c) => navLink({ ...c, icon: '' })).join('')}</div>`;
+        item.children.filter((c) => !c.hidden && session.can(c.perm || item.perm)).map((c) => navLink({ ...c, icon: '' })).join('')}</div>`;
     }).join('')}`;
   }).join('');
 }
+
+const collapsed = new Set(); // foydalanuvchi yopgan bo'limlar
 
 function markNav(routeName) {
   const parent = ROUTES[routeName]?.parent || routeName;
@@ -185,8 +205,9 @@ function markNav(routeName) {
     if (active) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });
+  collapsed.delete(parent);
   el.nav.querySelectorAll('.admin-nav__sub').forEach((sub) => {
-    sub.hidden = sub.dataset.parent !== parent;
+    sub.hidden = sub.dataset.parent !== parent || collapsed.has(sub.dataset.parent);
   });
 }
 
@@ -246,6 +267,7 @@ async function route() {
   }
 
   markNav(name);
+  el.tools.replaceChildren();
   el.title.textContent = meta.label;
   document.title = `${meta.label} — Admin — BETON INDUSTRY`;
 
@@ -305,6 +327,20 @@ el.logout.addEventListener('click', async () => {
   await logout();
   el.view.innerHTML = '';
   showLogin();
+});
+
+/** Bo'lim nomini (masalan «Transport») bossangiz — ochiq bo'lsa butunlay yopiladi, yopiq bo'lsa ochiladi */
+el.nav.addEventListener('click', (event) => {
+  const link = event.target.closest('a[data-route]');
+  const item = link && ROUTES[link.dataset.route];
+  if (!item?.children || item.parent) return;
+  const sub = el.nav.querySelector(`.admin-nav__sub[data-parent="${item.route}"]`);
+  if (sub && !sub.hidden) {
+    event.preventDefault();
+    collapsed.add(item.route);
+    sub.hidden = true;
+    link.classList.remove('is-open');
+  }
 });
 
 el.toggle.addEventListener('click', () => setSidebar(!document.body.classList.contains('sidebar-open')));

@@ -21,6 +21,12 @@ class OrderError(Exception):
 
 
 def create_public_order(db: Session, data: OrderCreate) -> Order:
+    return create_order(db, data, source=OrderSource.WEBSITE, note="Saytdan yaratildi")
+
+
+def create_order(
+    db: Session, data, *, source: OrderSource, note: str, manager_id: int | None = None, changed_by_id: int | None = None,
+) -> Order:
     """Saytdan kelgan buyurtmani bitta tranzaksiyada yaratadi.
 
     1. Marka faol va sotuvda ekanini tekshiradi (narx bazadan olinadi, frontenddan emas).
@@ -45,7 +51,8 @@ def create_public_order(db: Session, data: OrderCreate) -> Order:
         order_number=next_order_number(db),
         customer_id=customer.id,
         status=OrderStatus.NEW,
-        source=OrderSource.WEBSITE,
+        source=source,
+        manager_id=manager_id,
         delivery_required=data.delivery_required,
         delivery_address=data.delivery_address,
         delivery_lat=round_coord(data.delivery_lat) if data.delivery_lon is not None else None,
@@ -70,7 +77,7 @@ def create_public_order(db: Session, data: OrderCreate) -> Order:
         )
     )
     order.status_history.append(
-        OrderStatusHistory(from_status=None, to_status=OrderStatus.NEW, note="Saytdan yaratildi")
+        OrderStatusHistory(from_status=None, to_status=OrderStatus.NEW, note=note, changed_by_id=changed_by_id)
     )
 
     db.add(order)

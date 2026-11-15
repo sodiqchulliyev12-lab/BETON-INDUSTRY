@@ -41,7 +41,6 @@ export async function render(ctx) {
   const route = ctx.meta.route;
   ctx.root.innerHTML = '<div id="pageBody"></div>';
   const holder = ctx.root.querySelector('#pageBody');
-  if (route === 'planning') return planning(ctx, holder);
   if (route === 'trips') return trips(ctx, holder);
   if (route === 'fuel') return fuelReport(ctx, holder);
   if (route === 'expenses') return expenses(ctx, holder);
@@ -92,9 +91,8 @@ async function overview(ctx, holder, withList = false) {
       <div class="page-actions">
         ${dayBar({ date: f.date })}
         ${sel('fKind', kindOpts, f.kind)}${sel('fOwn', ownOpts, f.own)}${sel('fVs', vsOpts, f.vs)}${sel('fDriver', drvOpts, f.driver)}
-        <span class="page-actions__spacer"></span><a class="btn btn--primary" href="#/planning">${icon('i-plus')} Yangi reys</a>
       </div>
-      <div class="stats">
+      <div class="stats stats--row">
         ${stat({ label: 'Jami transport', value: nf(s.total), hint: `Mikser ${s.by_kind.mixer} · nasos ${s.by_kind.pump} · yuk ${s.by_kind.other} · yengil ${s.by_kind.car}`, tone: 'accent' })}
         <div class="stat stat--info"><span class="stat__label">Ishlayotgan</span><div class="stat--row"><span class="stat__value">${nf(s.busy)}</span>${ring(s.busy_pct, 'bandlik')}</div></div>
         ${stat({ label: 'Bo‘sh (erkin)', value: nf(s.free), tone: 'success' })}
@@ -141,36 +139,6 @@ async function overview(ctx, holder, withList = false) {
     holder.querySelectorAll('[data-page]').forEach((b) => b.addEventListener('click', () => go({ page: b.dataset.page })));
     holder.querySelectorAll('tr[data-href]').forEach((r) => r.addEventListener('click', (e) => { if (!e.target.closest('a')) location.hash = r.dataset.href; }));
     if (withList) import('./vehicles.js').then((m) => m.render({ ...ctx, root: holder.querySelector('#vehicleList'), meta: { route: 'vehicles' } }));
-  });
-}
-
-/* ---------------------------------------------------------------- Logistika rejalashtirish */
-
-async function planning(ctx, holder) {
-  const day = ctx.query.get('date') || todayISO();
-  await load(ctx, holder, () => http(`/admin/fleet/planning${qs({ date: day })}`), (p) => {
-    const free = p.vehicles.filter((v) => v.status !== 'repair');
-    holder.innerHTML = `
-      <div class="page-actions">${dayBar({ date: day, allowFuture: true })}
-        <span class="text-muted">${p.orders.length} ta buyurtma · biriktirilmagan: <strong>${volume(p.unassigned_total_m3)}</strong></span></div>
-      <div class="admin-grid admin-grid--main">
-        <section class="box"><div class="box__head"><h2 class="box__title">Buyurtmalar</h2></div>
-          <div class="table-wrap"><table class="table"><thead><tr><th>Buyurtma</th><th>Vaqt</th><th>Manzil</th><th class="num">Buyurtma</th><th class="num">Biriktirilgan</th><th class="num">Qolgan</th><th>Qatnovlar</th></tr></thead>
-          <tbody>${p.orders.length ? p.orders.map((o) => `<tr class="is-link" data-href="#/orders/${o.id}">
-            <td class="strong"><a href="#/orders/${o.id}">${escapeHtml(o.order_number)}</a><br><span class="muted">${escapeHtml(o.customer || '')}</span></td>
-            <td class="nowrap">${escapeHtml(o.delivery_time || '—')}</td><td>${o.delivery_required ? escapeHtml(o.address || '—') : '<span class="muted">O‘zi olib ketadi</span>'}</td>
-            <td class="num">${volume(o.ordered_m3)}</td><td class="num">${volume(o.assigned_m3)}</td>
-            <td class="num ${o.unassigned_m3 > 0 ? 'strong text-danger' : ''}">${o.unassigned_m3 > 0 ? volume(o.unassigned_m3) : '✓'}</td>
-            <td>${o.trips.length ? o.trips.map((t) => `<span class="badge">${escapeHtml(t.plate_number)} · ${nf(t.volume_m3, 1)}</span>`).join(' ') : '<span class="muted">—</span>'}</td></tr>`).join('')
-    : emptyRow(7, `${fmtDate(day)} uchun buyurtmalar yo‘q.`)}</tbody></table></div></section>
-        <section class="box"><div class="box__head"><h2 class="box__title">Transport (${free.length})</h2></div>
-          <div class="table-wrap"><table class="table"><thead><tr><th>Raqam</th><th>Bo‘lim</th><th>Holat</th><th class="num">Reys</th></tr></thead>
-          <tbody>${free.length ? free.map((v) => `<tr><td class="nowrap strong">${escapeHtml(v.plate_number)}<br><span class="muted">${escapeHtml(ownLabel(v.kind, v.ownership))}${v.capacity_m3 ? ` · ${nf(v.capacity_m3, 1)} m³` : ''}</span></td>
-            <td>${escapeHtml(KIND[v.kind] || v.kind)}</td><td>${statusBadge(v.status, VEHICLE_STATUS)}</td><td class="num">${v.trips_that_day}</td></tr>`).join('') : emptyRow(4, 'Faol transport yo‘q.')}</tbody></table></div></section>
-      </div>
-      <p class="text-muted mt-5">Qatnov buyurtma sahifasidan biriktiriladi: buyurtmani oching → «Qatnovlar». Bir mashinani bir necha haydovchi haydashi mumkin — har bir qatnovga haydovchi alohida tanlanadi.</p>`;
-    bindPeriod(holder);
-    holder.querySelectorAll('tr[data-href]').forEach((r) => r.addEventListener('click', (e) => { if (!e.target.closest('a')) location.hash = r.dataset.href; }));
   });
 }
 
@@ -285,13 +253,19 @@ async function report(ctx, holder) {
         ${stat({ label: 'Arenda / reys bay / soatbay', value: `${nf(t.rental_cost)}<span class="stat__unit">so‘m</span>` })}
         ${stat({ label: 'Boshqa xarajatlar', value: `${nf(t.expenses_total)}<span class="stat__unit">so‘m</span>` })}
         ${stat({ label: 'Jami transport xarajati', value: `${nf(t.cost_total)}<span class="stat__unit">so‘m</span>`, tone: 'info' })}</div>
-      <div class="admin-grid admin-grid--main">
-        <section class="box"><div class="table-wrap"><table class="table"><thead><tr><th>Transport</th><th>Bo‘lim</th><th>Egasi</th><th class="num">Reys</th><th class="num">Hajm</th><th class="num">Arenda</th><th class="num">Xarajat</th><th class="num">Jami</th></tr></thead>
-        <tbody>${r.rows.length ? r.rows.map((x) => `<tr><td class="strong nowrap">${escapeHtml(x.plate_number)}<br><span class="muted">${escapeHtml(x.vehicle_type)}</span></td><td>${escapeHtml(KIND[x.kind] || x.kind)}</td><td>${escapeHtml(ownLabel(x.kind, x.ownership))}</td>
+      ${TILE_KINDS.map((k) => {
+    const list = r.rows.filter((x) => x.kind === k);
+    const sum = (key) => list.reduce((acc, x) => acc + (x[key] || 0), 0);
+    return `<section class="box kind-report mt-5"><div class="kind-report__head">
+        <img class="kind-report__pic" src="${KIND_PHOTO[k]}" alt="${escapeHtml(VEHICLE_KIND_TITLE[k])}" loading="lazy">
+        <div><h2 class="box__title">${escapeHtml(VEHICLE_KIND_TITLE[k])} <small>${list.length} ta</small></h2>
+          <div class="kind-report__stats"><span>Reys: <b>${nf(sum('trips'))}</b></span><span>Hajm: <b>${nf(sum('volume_m3'), 1)} m³</b></span><span>Arenda: <b>${nf(sum('rental_cost'))}</b></span><span>Xarajat: <b>${nf(sum('expenses_total'))}</b></span><span>Jami: <b>${nf(sum('cost_total'))} so‘m</b></span></div></div></div>
+        <div class="table-wrap"><table class="table"><thead><tr><th>Transport</th><th>Egasi</th><th class="num">Reys</th><th class="num">Hajm</th><th class="num">Arenda</th><th class="num">Xarajat</th><th class="num">Jami</th></tr></thead>
+        <tbody>${list.length ? list.map((x) => `<tr><td class="strong nowrap">${escapeHtml(x.plate_number)}<br><span class="muted">${escapeHtml(x.vehicle_type)}</span></td><td>${escapeHtml(ownLabel(x.kind, x.ownership))}</td>
           <td class="num">${x.trips}</td><td class="num">${nf(x.volume_m3, 1)}</td><td class="num">${nf(x.rental_cost)}</td><td class="num">${nf(x.expenses_total)}</td><td class="num strong">${nf(x.cost_total)}</td></tr>`).join('')
-    : emptyRow(8, 'Transport yoki ma’lumot yo‘q.')}</tbody></table></div></section>
-        <section class="box"><div class="box__head"><h2 class="box__title">Xarajat tarkibi</h2></div><div class="box__body">${donut(costParts, { unit: 'so‘m' })}</div></section>
-      </div>`;
+    : emptyRow(7, `${VEHICLE_KIND_TITLE[k]} yoki ma’lumot yo‘q.`)}</tbody></table></div></section>`;
+  }).join('')}
+      <section class="box mt-5"><div class="box__head"><h2 class="box__title">Xarajat tarkibi</h2></div><div class="box__body">${donut(costParts, { unit: 'so‘m' })}</div></section>`;
     bindPeriod(holder);
     holder.querySelector('[data-csv]').addEventListener('click', () => downloadCsv(`transport-hisobot-${from}_${to}.csv`,
       [['Davlat raqami', 'Turi', 'Bo‘lim', 'Egasi', 'Reys', 'Hajm m3', 'Arenda', 'Xarajat', 'Jami']].concat(
@@ -314,7 +288,7 @@ async function fuelReport(ctx, holder) {
         <div class="fuel-card__big">${nf(p.cost)} <small>so‘m (davr)</small></div><p>${p.qty ? `${nf(p.qty, 1)} ${FUEL_UNIT[k] || ''} · ` : ''}${p.count} marta</p>
         <p><b>Kun (${fmtDate(r.date).slice(0, 5)}):</b> ${nf(d.cost)} so‘m${d.qty ? ` · ${nf(d.qty, 1)} ${FUEL_UNIT[k] || ''}` : ''}</p></div>`;
     }).join('');
-    holder.innerHTML = `<div class="page-actions">${dayBar({ date: day, label: 'Kun' })}${rangeBar({ from, to })}
+    holder.innerHTML = `<div class="page-actions">${rangeBar({ from, to })}
         ${sel2('fKind', [['', 'Barcha transport'], ['mixer', 'Mikserlar'], ['pump', 'Beton nasoslari'], ['other', 'Yuk avtomobillari'], ['car', 'Yengil avtomobillar']], kind)}
         <span class="page-actions__spacer"></span><button class="btn btn--outline" data-csv>Eksport (CSV)</button></div>
       <div class="stats">${stat({ label: 'Yoqilg‘i jami (davr)', value: `${nf(r.total.period)}<span class="stat__unit">so‘m</span>`, tone: 'accent' })}
@@ -353,7 +327,7 @@ async function trips(ctx, holder) {
     if (vehicle) who.push(`mashina: ${vehicles.find((v) => String(v.id) === vehicle)?.plate_number || ''}`);
     const sh = (v) => (v ? `<small>${v}</small>` : '');
     holder.innerHTML = `
-      <div class="page-actions">${dayBar({ date: day, label: 'Kun' })}${rangeBar({ from, to })}</div>
+      <div class="page-actions">${rangeBar({ from, to })}</div>
       <div class="page-actions">
         ${sel2('fDriver', [['', 'Haydovchi (hammasi)'], ...drivers.filter((d) => d.is_active || String(d.id) === driver).map((d) => [d.id, d.full_name])], driver)}
         ${sel2('fVehicle', [['', 'Mashina raqami (hammasi)'], ...vehicles.filter((v) => v.is_active || String(v.id) === vehicle).map((v) => [v.id, `${v.plate_number} · ${v.vehicle_type}`])], vehicle)}
@@ -371,7 +345,7 @@ async function trips(ctx, holder) {
         ${k === 'pump' ? `<span class="kind-pick__row"><span>Ish soati (kun / davr)</span><b>${nf(d.hours_day, 1)} / ${nf(d.hours_period, 1)}</b></span>` : ''}
         <a class="kind-pick__more" href="#/${KIND_ROUTE[k]}">Batafsil →</a></div>`;
   }).join('')}</div>
-      <p class="text-muted">${who.length ? `<strong>${escapeHtml(who.join(' · '))}</strong> bo‘yicha. ` : ''}Katta raqam — tanlangan davr, kichigi — «${escapeHtml(fmtDate(u.date))}» kuni. Bir mashinani bir necha haydovchi, bir haydovchi esa bir necha mashinani haydashi mumkin: har bir qatnov o‘z haydovchisi va mashinasi bilan hisoblanadi.</p>
+      <p class="text-muted">${who.length ? `<strong>${escapeHtml(who.join(' · '))}</strong> bo‘yicha. ` : ''}Bir mashinani bir necha haydovchi, bir haydovchi esa bir necha mashinani haydashi mumkin: har bir qatnov o‘z haydovchisi va mashinasi bilan hisoblanadi.</p>
       <div class="stats">
         ${stat({ label: 'Qatnovlar', value: nf(u.totals.period.trips), hint: `Kun: <b>${nf(u.totals.day.trips)}</b>`, tone: 'accent' })}
         ${stat({ label: 'Hajm', value: `${nf(u.totals.period.volume_m3, 1)}<span class="stat__unit">m³</span>`, hint: `Kun: <b>${nf(u.totals.day.volume_m3, 1)} m³</b>` })}

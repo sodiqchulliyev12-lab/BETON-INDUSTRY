@@ -51,6 +51,9 @@ class ProductionRecord(TimestampMixin, Base):
         ForeignKey("concrete_products.id", ondelete="RESTRICT"), index=True, nullable=False
     )
     batch_number: Mapped[str | None] = mapped_column(String(50))
+    customer_id: Mapped[int | None] = mapped_column(ForeignKey("customers.id", ondelete="SET NULL"))
+    vehicle_id: Mapped[int | None] = mapped_column(ForeignKey("vehicles.id", ondelete="SET NULL"))  # tashuvchi mikser
+    waybill_no: Mapped[str | None] = mapped_column(String(30), unique=True)  # nakladnoy raqami (avtomat)
     produced_volume_m3: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     produced_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True, nullable=False

@@ -93,6 +93,12 @@ def create_record(payload: RecordIn, db: Session = Depends(get_db), user: User =
     return _record_out(db, record)
 
 
+@router.get("/records/{record_id}/waybill")
+def record_waybill(record_id: int, db: Session = Depends(get_db), _: User = Depends(require(Perm.PRODUCTION_READ))):
+    """Nakladnoy (chop etish uchun) — ishlab chiqarish yozuvidan avtomat shakllanadi."""
+    return production.waybill(db, _record(db, record_id))
+
+
 @router.post("/records/{record_id}/qc", response_model=RecordOut)
 def set_qc(record_id: int, payload: QcIn, db: Session = Depends(get_db), user: User = Depends(require(Perm.PRODUCTION_MANAGE))):
     return _record_out(db, production.set_qc(db, _record(db, record_id), payload, user))

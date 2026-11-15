@@ -78,3 +78,5 @@ class StockMovement(CreatedAtMixin, Base):
     document_no: Mapped[str | None] = mapped_column(String(50))
     note: Mapped[str | None] = mapped_column(Text)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    # Ishlab chiqarishdan avtomat chiqim bo'lsa — qaysi yozuvdan (yozuv o'chirilsa, chiqim ham qaytariladi)
+    production_record_id: Mapped[int | None] = mapped_column(ForeignKey("production_records.id", ondelete="CASCADE"), index=True)

@@ -42,6 +42,7 @@ async function renderList({ root, query, isCurrent }) {
       </select>
       ${rangeBar({ from: filters.date_from, to: filters.date_to, allowFuture: true, label: 'Yetkazish', fromParam: 'date_from', toParam: 'date_to' })}
       ${filters.q || filters.status || filters.date_from || filters.date_to ? '<button type="button" class="btn btn--outline btn--sm" data-reset>Tozalash</button>' : ''}
+      ${session.can(PERM.ORDERS_MANAGE) ? `<button type="button" class="btn btn--primary" data-new-order>${icon('i-plus')} Yangi buyurtma</button>` : ''}
     </div>
     <section class="box" id="ordersBox">${loadingHtml()}</section>`;
 
@@ -51,6 +52,7 @@ async function renderList({ root, query, isCurrent }) {
   bar.querySelectorAll('select[name]').forEach((input) => {
     input.addEventListener('change', () => setQuery({ [input.name]: input.value, page: '' }));
   });
+  bar.querySelector('[data-new-order]')?.addEventListener('click', () => newOrderForm(() => renderList({ root, query, isCurrent })));
   bar.querySelector('[data-reset]')?.addEventListener('click', () => setQuery({ q: '', status: '', date_from: '', date_to: '', page: '' }));
 
   const box = root.querySelector('#ordersBox');
@@ -540,6 +542,67 @@ function editOrder(order, redraw) {
       const updated = await http(`/admin/orders/${order.id}`, { method: 'PATCH', body });
       toast('Buyurtma saqlandi.', 'success');
       redraw(updated);
+    },
+  });
+}
+
+
+/* ==========================================================================
+   Yangi buyurtma (admin paneldan: telefon yoki uchrashuvda kelishilgan)
+   ========================================================================== */
+
+async function newOrderForm(onSaved) {
+  let products = [];
+  let users = [];
+  try {
+    products = (await http('/admin/products')).filter((p) => p.is_active && p.is_available);
+    if (session.can(PERM.USERS_MANAGE)) users = (await http('/admin/users')).filter((u) => u.is_active);
+  } catch (err) {
+    toast(err.message || 'Markalar yuklanmadi.', 'error');
+    return;
+  }
+  if (!products.length) {
+    toast('Sotuvdagi beton markasi yo‘q. Avval «Beton markalari» bo‘limida marka qo‘shing.', 'warning');
+    return;
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  formModal({
+    title: 'Yangi buyurtma',
+    body: `<div class="form-row">${field({ name: 'customer_name', label: 'Mijoz ismi', required: true, attrs: 'maxlength="100" autocomplete="off"' })}
+      ${field({ name: 'phone', label: 'Telefon', required: true, attrs: 'inputmode="tel" placeholder="+998 90 123 45 67" autocomplete="off"' })}</div>
+      <div class="form-row">${field({ name: 'product_id', label: 'Beton markasi', required: true, options: [{ value: '', label: '— tanlang —' }].concat(products.map((p) => ({ value: p.id, label: `${p.name} (${p.grade_class})` }))) })}
+      ${field({ name: 'volume_m3', label: 'Hajm (m³)', required: true, attrs: 'inputmode="decimal" autocomplete="off"' })}</div>
+      <div class="form-row">${field({ name: 'delivery_date', label: 'Sana', type: 'date', value: today, required: true })}
+      ${field({ name: 'delivery_time', label: 'Vaqt', type: 'time' })}</div>
+      ${field({ name: 'delivery_required', label: 'Yetkazib berish', options: [{ value: '1', label: 'Yetkazib beriladi' }, { value: '0', label: 'O‘zi olib ketadi' }] })}
+      <div data-addr>${field({ name: 'delivery_address', label: 'Manzil', attrs: 'maxlength="500"' })}</div>
+      ${users.length ? field({ name: 'manager_id', label: 'Sotuvchi (KPI uchun)', options: [{ value: '', label: 'Men (joriy foydalanuvchi)' }].concat(users.map((u) => ({ value: u.id, label: u.full_name }))) }) : ''}
+      ${field({ name: 'comment', label: 'Izoh', type: 'textarea', rows: 2, attrs: 'maxlength="1000"' })}`,
+    onOpen: (form) => {
+      const sync = () => { form.querySelector('[data-addr]').hidden = form.elements.delivery_required.value !== '1'; };
+      form.elements.delivery_required.addEventListener('change', sync);
+      sync();
+    },
+    onSubmit: async (form) => {
+      const f = form.elements;
+      const vol = numberOrNull(f.volume_m3.value);
+      const delivery = f.delivery_required.value === '1';
+      localErrors(form, {
+        customer_name: f.customer_name.value.trim().length >= 2 ? null : 'Mijoz ismini kiriting.',
+        phone: f.phone.value.trim() ? null : 'Telefon raqamini kiriting.',
+        product_id: f.product_id.value ? null : 'Markani tanlang.',
+        volume_m3: vol === null || Number.isNaN(vol) || vol <= 0 ? 'Musbat hajm kiriting.' : null,
+        delivery_date: f.delivery_date.value ? null : 'Sanani kiriting.',
+        delivery_address: delivery && f.delivery_address.value.trim().length < 5 ? 'Manzilni kiriting.' : null,
+      });
+      const created = await http('/admin/orders', { method: 'POST', body: {
+        customer_name: f.customer_name.value.trim(), phone: f.phone.value.trim(), product_id: Number(f.product_id.value), volume_m3: vol,
+        delivery_required: delivery, delivery_address: delivery ? f.delivery_address.value.trim() : null,
+        delivery_date: f.delivery_date.value, delivery_time: f.delivery_time.value || null,
+        comment: f.comment.value.trim() || null, manager_id: f.manager_id?.value ? Number(f.manager_id.value) : null,
+      } });
+      toast(`Buyurtma ${created.order_number} yaratildi.`, 'success');
+      onSaved();
     },
   });
 }

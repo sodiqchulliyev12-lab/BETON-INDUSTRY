@@ -115,23 +115,24 @@ export async function render(ctx) {
     <section class="box">
       <div class="box__head"><h2 class="box__title">Ishlab chiqarish yozuvlari va sifat nazorati</h2></div>
       <div class="table-wrap"><table class="table">
-        <thead><tr><th>Vaqt</th><th>Marka</th><th>Partiya</th><th>Buyurtma</th><th class="num">Hajm</th><th>Sifat nazorati</th><th>Kiritgan</th>${canManage ? '<th></th>' : ''}</tr></thead>
+        <thead><tr><th>Vaqt</th><th>Mijoz</th><th>Marka</th><th>Mikser</th><th>Buyurtma</th><th class="num">Hajm</th><th>Nakladnoy</th><th>Sifat nazorati</th>${canManage ? '<th></th>' : ''}</tr></thead>
         <tbody>${records.length ? records.map((r) => `
           <tr data-record="${r.id}">
             <td class="nowrap">${fmtDateTime(r.produced_at).slice(11)}</td>
-            <td>${gradeHtml(r)}</td>
-            <td>${escapeHtml(r.batch_number || '—')}</td>
+            <td>${r.customer_name ? escapeHtml(r.customer_name) : '<span class="muted">—</span>'}</td>
+            <td>${gradeHtml(r)}${r.batch_number ? `<br><span class="muted">partiya ${escapeHtml(r.batch_number)}</span>` : ''}</td>
+            <td class="nowrap">${r.plate_number ? escapeHtml(r.plate_number) : '<span class="muted">—</span>'}</td>
             <td>${r.order_id ? `<a href="#/orders/${r.order_id}">${escapeHtml(r.order_number)}</a>` : '—'}</td>
             <td class="num">${volume(r.produced_volume_m3)}</td>
+            <td class="nowrap"><button type="button" class="btn btn--outline btn--sm" data-waybill title="Nakladnoyni ko‘rish va chop etish">${escapeHtml(r.waybill_no || 'Nakladnoy')}</button></td>
             <td>${statusBadge(r.qc_status, QC_STATUS)}${r.qc_by ? `<br><span class="muted">${escapeHtml(r.qc_by)}, ${fmtDateTime(r.qc_at).slice(11)}</span>` : ''}
               ${r.qc_notes ? `<br><span class="muted">${escapeHtml(r.qc_notes)}</span>` : ''}</td>
-            <td class="muted">${escapeHtml(r.created_by || '—')}</td>
             ${canManage ? `<td class="num nowrap">
               ${r.qc_status !== 'passed' ? '<button type="button" class="btn btn--primary btn--sm" data-qc="passed">O‘tdi</button>' : ''}
               ${r.qc_status !== 'failed' ? '<button type="button" class="btn btn--outline btn--sm" data-qc="failed">O‘tmadi</button>' : ''}
               ${r.qc_status === 'pending' ? `<button type="button" class="icon-btn" data-record-delete aria-label="O‘chirish" title="O‘chirish">${icon('i-trash')}</button>` : ''}
             </td>` : ''}
-          </tr>`).join('') : emptyRow(canManage ? 8 : 7, 'Bu kun ishlab chiqarish yozuvlari yo‘q.')}
+          </tr>`).join('') : emptyRow(canManage ? 9 : 8, 'Bu kun ishlab chiqarish yozuvlari yo‘q.')}
         </tbody></table></div>
     </section>`;
 
@@ -152,6 +153,7 @@ export async function render(ctx) {
 
   holder.querySelectorAll('tr[data-record]').forEach((row) => {
     const record = records.find((r) => r.id === Number(row.dataset.record));
+    row.querySelector('[data-waybill]')?.addEventListener('click', () => waybillView(record));
     row.querySelectorAll('[data-qc]').forEach((btn) => btn.addEventListener('click', () => qcForm(record, btn.dataset.qc, reload)));
     row.querySelector('[data-record-delete]')?.addEventListener('click', async () => {
       if (!(await confirmAction({ title: 'Yozuvni o‘chirish', text: `${gradeText(record)}, ${volume(record.produced_volume_m3)} yozuvi o‘chiriladi.`, confirmLabel: 'O‘chirish' }))) return;
@@ -228,7 +230,11 @@ async function planForm(plan, day, products, onSaved) {
 }
 
 async function recordForm(day, plans, products, onSaved) {
-  const orders = await openOrders();
+  const [orders, customers, vehicles] = await Promise.all([
+    openOrders(),
+    http('/admin/customers?page_size=100').then((p) => p.items).catch(() => []),
+    http('/admin/vehicles').then((v) => v.filter((x) => x.kind === 'mixer' && x.is_active)).catch(() => []),
+  ]);
   const activePlans = plans.filter((p) => p.status !== 'cancelled' && p.status !== 'completed');
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
@@ -236,27 +242,37 @@ async function recordForm(day, plans, products, onSaved) {
   const defaultTime = isToday ? `${pad(now.getHours())}:${pad(now.getMinutes())}` : '12:00';
 
   formModal({
-    title: 'Ishlab chiqarilgan hajmni kiritish',
+    title: 'Ishlab chiqarildi',
     body: `
       ${field({ name: 'plan_id', label: 'Reja', value: activePlans[0]?.id ?? '',
         options: [{ value: '', label: '— rejasiz —' }].concat(activePlans.map((p) => ({ value: p.id, label: `${gradeText(p)} · ${volume(p.planned_volume_m3)}${p.order_number ? ` · ${p.order_number}` : ''}` }))),
-        hint: 'Reja tanlansa, marka va buyurtma rejadan olinadi.' })}
+        hint: 'Reja tanlansa, mijoz, marka va buyurtma rejadan olinadi.' })}
       <div data-free>
-        ${field({ name: 'product_id', label: 'Beton markasi', value: products[0]?.id, options: productOptions(products) })}
         ${field({ name: 'order_id', label: 'Buyurtma (ixtiyoriy)', value: '',
-          options: [{ value: '', label: '— bog‘lanmagan —' }].concat(orders.map((o) => ({ value: o.id, label: `${o.order_number} · ${o.products} · ${volume(o.volume_m3)}` }))) })}
+          options: [{ value: '', label: '— bog‘lanmagan —' }].concat(orders.map((o) => ({ value: o.id, label: `${o.order_number} · ${o.customer_name} · ${o.products} · ${volume(o.volume_m3)}` }))) })}
+        ${field({ name: 'customer_id', label: 'Mijoz', value: '', options: [{ value: '', label: '— tanlang —' }].concat(customers.map((c) => ({ value: c.id, label: `${c.company_name || c.full_name} · ${c.phone}` }))), hint: 'Buyurtma tanlansa, mijoz buyurtmadan olinadi.' })}
+        ${field({ name: 'product_id', label: 'Beton markasi', value: products[0]?.id, options: productOptions(products) })}
       </div>
       <div class="form-row">
-        ${field({ name: 'produced_volume_m3', label: 'Hajm (m³)', required: true, attrs: 'inputmode="decimal" autocomplete="off"' })}
+        ${field({ name: 'produced_volume_m3', label: 'Miqdori (m³)', required: true, attrs: 'inputmode="decimal" autocomplete="off"' })}
         ${field({ name: 'time', label: `Vaqt (${fmtDate(day)})`, type: 'time', value: defaultTime, required: true })}
       </div>
+      ${field({ name: 'vehicle_id', label: 'Tashuvchi mikser raqami', value: '', options: [{ value: '', label: '— tanlang —' }].concat(vehicles.map((v) => ({ value: v.id, label: `${v.plate_number} · ${v.vehicle_type}${v.capacity_m3 ? ` · ${v.capacity_m3} m³` : ''}` }))) })}
       ${field({ name: 'batch_number', label: 'Partiya raqami', attrs: 'maxlength="50"' })}
-      <p class="text-muted">Yozuv «Sifat nazorati kutilmoqda» holatida yaratiladi.</p>`,
+      <p class="text-muted">Saqlanganda xomashyo ombordan me’yor bo‘yicha avtomat chiqim qilinadi va nakladnoy (yuk xati) shakllanadi. Yozuv «Sifat nazorati kutilmoqda» holatida yaratiladi.</p>`,
     onOpen: (form) => {
       const free = form.querySelector('[data-free]');
       const sync = () => { free.hidden = Boolean(form.elements.plan_id.value); };
       form.elements.plan_id.addEventListener('change', sync);
       sync();
+      form.elements.order_id.addEventListener('change', () => {
+        const order = orders.find((o) => o.id === Number(form.elements.order_id.value));
+        if (!order) return;
+        const product = products.find((x) => order.products.split(', ').includes(x.grade_class));
+        if (product) form.elements.product_id.value = String(product.id);
+        form.elements.customer_id.value = String(order.customer_id ?? '');
+        if (!form.elements.produced_volume_m3.value) form.elements.produced_volume_m3.value = String(order.volume_m3);
+      });
     },
     onSubmit: async (form) => {
       const f = form.elements;
@@ -268,17 +284,51 @@ async function recordForm(day, plans, products, onSaved) {
       const [hh, mm] = f.time.value.split(':').map(Number);
       const [y, m, d] = day.split('-').map(Number);
       const producedAt = new Date(y, m - 1, d, hh, mm); // brauzerning mahalliy vaqti
+      const fromPlan = Boolean(f.plan_id.value);
       const body = {
-        plan_id: f.plan_id.value ? Number(f.plan_id.value) : null,
-        product_id: f.plan_id.value ? null : Number(f.product_id.value),
-        order_id: f.plan_id.value ? null : (f.order_id.value ? Number(f.order_id.value) : null),
+        plan_id: fromPlan ? Number(f.plan_id.value) : null,
+        product_id: fromPlan ? null : Number(f.product_id.value),
+        order_id: fromPlan ? null : (f.order_id.value ? Number(f.order_id.value) : null),
+        customer_id: fromPlan || !f.customer_id.value ? null : Number(f.customer_id.value),
+        vehicle_id: f.vehicle_id.value ? Number(f.vehicle_id.value) : null,
         produced_volume_m3: amount,
         batch_number: f.batch_number.value.trim() || null,
         produced_at: producedAt.toISOString(),
       };
       await http('/admin/production/records', { method: 'POST', body });
-      toast('Ishlab chiqarish yozuvi qo‘shildi.', 'success');
+      toast('Ishlab chiqarish yozuvi qo‘shildi, xomashyo chiqim qilindi.', 'success');
       onSaved();
+    },
+  });
+}
+
+/** Nakladnoy (yuk xati): ishlab chiqarish yozuvidan avtomat to'ldiriladi; «Chop etish» tugmasi bilan chop etiladi */
+async function waybillView(record) {
+  let w;
+  try {
+    w = await http(`/admin/production/records/${record.id}/waybill`);
+  } catch (err) {
+    toast(err.message || 'Nakladnoy ochilmadi.', 'error');
+    return;
+  }
+  const row = (k, v) => `<tr><th>${k}</th><td>${v ? escapeHtml(v) : '—'}</td></tr>`;
+  formModal({
+    title: `Nakladnoy ${w.number}`,
+    submitLabel: 'Chop etish',
+    body: `<div class="waybill">
+      <h3 class="waybill__title">NAKLADNOY № ${escapeHtml(w.number)}</h3>
+      <p class="waybill__sub">BETON INDUSTRY · ${escapeHtml(fmtDate(w.date))} ${escapeHtml(w.time)}</p>
+      <table class="waybill__table"><tbody>
+        ${row('Mijoz', w.customer)}${row('Telefon', w.customer_phone)}${row('Buyurtma', w.order_number)}${row('Manzil', w.address)}
+        ${row('Beton markasi', `${w.product} (${w.grade})`)}${row('Miqdori', `${formatNumber(w.volume_m3, 2)} m³`)}${row('Partiya', w.batch_number)}
+        ${row('Mikser raqami', w.vehicle)}${row('Haydovchi', w.driver)}
+      </tbody></table>
+      ${w.materials.length ? `<p class="waybill__sub"><b>Sarflangan xomashyo (me’yor bo‘yicha):</b></p><table class="waybill__table"><tbody>${w.materials.map((m) => `<tr><th>${escapeHtml(m.name)}</th><td>${formatNumber(m.quantity, 3)} ${escapeHtml(m.unit)}</td></tr>`).join('')}</tbody></table>` : ''}
+      <div class="waybill__sign"><span>Topshirdi: ____________</span><span>Qabul qildi: ____________</span></div>
+    </div>`,
+    onSubmit: async () => {
+      window.print();
+      return true;
     },
   });
 }

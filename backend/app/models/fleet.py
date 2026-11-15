@@ -35,6 +35,7 @@ class Driver(TimestampMixin, Base):
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
     phone: Mapped[str] = mapped_column(String(13), nullable=False)
     license_number: Mapped[str | None] = mapped_column(String(30))
+    telegram: Mapped[str | None] = mapped_column(String(64))  # @username yoki havola
     employment: Mapped[DriverEmployment] = mapped_column(
         pg_enum(DriverEmployment, "driver_employment"),
         server_default=DriverEmployment.STAFF.value,

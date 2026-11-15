@@ -9,7 +9,10 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, aliased
 
-from app.models import ConcreteProduct, Order, OrderItem, OrderTrip, ProductionPlan, ProductionRecord, SystemSetting, User
+from app.models import (
+    ConcreteProduct, Customer, Driver, Material, Order, OrderItem, OrderTrip, ProductionPlan, ProductionRecord, StockMovement,
+    SystemSetting, User, Vehicle, Warehouse,
+)
 from app.models.enums import OrderStatus, PlanStatus, QcStatus, TripStatus
 from app.schemas.admin_production import (
     PlanIn, PlanOut, ProductDaySummary, ProductionSummary, QcIn, RecordIn, RecordOut,
@@ -134,10 +137,14 @@ def list_records(db: Session, day: date) -> list[RecordOut]:
         .where(ProductionRecord.produced_at >= start, ProductionRecord.produced_at < end)
         .order_by(ProductionRecord.produced_at.desc())
     ).all()
+    customers = {c.id: (c.company_name or c.full_name) for c in db.scalars(select(Customer).where(Customer.id.in_({r.customer_id for r, *_ in rows if r.customer_id})))} if rows else {}
+    plates = dict(db.execute(select(Vehicle.id, Vehicle.plate_number).where(Vehicle.id.in_({r.vehicle_id for r, *_ in rows if r.vehicle_id}))).all()) if rows else {}
     return [
         RecordOut(
             id=r.id, plan_id=r.plan_id, order_id=r.order_id, order_number=number, product_id=r.product_id,
             grade_class=grade, product_name=name, batch_number=r.batch_number, produced_volume_m3=r.produced_volume_m3,
+            customer_id=r.customer_id, customer_name=customers.get(r.customer_id), vehicle_id=r.vehicle_id,
+            plate_number=plates.get(r.vehicle_id), waybill_no=r.waybill_no,
             produced_at=r.produced_at, qc_status=r.qc_status, qc_notes=r.qc_notes, qc_by=qc_name, qc_at=r.qc_at,
             created_by=author,
         )
@@ -159,7 +166,14 @@ def create_record(db: Session, data: RecordIn, user: User) -> ProductionRecord:
     product_id = plan.product_id if plan else data.product_id
     _product(db, product_id)
     order_id = data.order_id if data.order_id is not None else (plan.order_id if plan else None)
-    _order(db, order_id)
+    order = _order(db, order_id)
+    customer_id = order.customer_id if order else data.customer_id
+    if customer_id is not None and db.get(Customer, customer_id) is None:
+        raise OrderError("Mijoz topilmadi.", field="customer_id")
+    if data.vehicle_id is not None:
+        veh = db.get(Vehicle, data.vehicle_id)
+        if veh is None or veh.kind != "mixer":
+            raise OrderError("Tashuvchi mikserni ro‘yxatdan tanlang.", field="vehicle_id")
     produced_at = data.produced_at or datetime.now(UTC)
     if produced_at.tzinfo is None:
         produced_at = produced_at.replace(tzinfo=local_tz())
@@ -171,16 +185,76 @@ def create_record(db: Session, data: RecordIn, user: User) -> ProductionRecord:
         order_id=order_id,
         product_id=product_id,
         batch_number=data.batch_number,
+        customer_id=customer_id,
+        vehicle_id=data.vehicle_id,
         produced_volume_m3=data.produced_volume_m3,
         produced_at=produced_at,
         created_by_id=user.id,
     )
     db.add(record)
+    db.flush()
+    record.waybill_no = f"NK-{produced_at.astimezone(local_tz()).year}-{record.id:05d}"
+    consume_materials(db, record, user)
     if plan and plan.status == PlanStatus.PLANNED:
         plan.status = PlanStatus.IN_PROGRESS
     db.commit()
     db.refresh(record)
     return record
+
+
+def consume_materials(db: Session, record: ProductionRecord, user: User) -> None:
+    """Ishlab chiqarildi kiritilsa — me'yori (1 m³ ga) belgilangan xomashyolar ombordan avtomat chiqim qilinadi.
+
+    Me'yori kiritilmagan material tegilmaydi (tizim taxmin qilmaydi). Yozuv o'chirilsa, chiqim ham qaytariladi.
+    """
+    warehouse = db.scalar(select(Warehouse).where(Warehouse.is_active.is_(True)).order_by(Warehouse.id))
+    if warehouse is None:
+        return
+    day = record.produced_at.astimezone(local_tz()).date()
+    materials = db.scalars(select(Material).where(Material.is_active.is_(True), Material.norm_per_m3.is_not(None), Material.norm_per_m3 > 0))
+    for m in materials:
+        qty = (m.norm_per_m3 * record.produced_volume_m3).quantize(Decimal("0.001"))
+        if qty <= 0:
+            continue
+        db.add(StockMovement(
+            material_id=m.id, warehouse_id=warehouse.id, kind="production", quantity=-qty, movement_date=day,
+            document_no=record.waybill_no, note=f"Ishlab chiqarish: {record.produced_volume_m3} m³ (me'yor bo'yicha avtomat)",
+            created_by_id=user.id, production_record_id=record.id,
+        ))
+
+
+def waybill(db: Session, record: ProductionRecord) -> dict:
+    """Nakladnoy (yuk xati): ishlab chiqarish yozuvidagi ma'lumotlar bo'yicha avtomat to'ldiriladi. Narx ko'rsatilmaydi."""
+    if not record.waybill_no:
+        record.waybill_no = f"NK-{record.produced_at.astimezone(local_tz()).year}-{record.id:05d}"
+        db.commit()
+    product = db.get(ConcreteProduct, record.product_id)
+    order = db.get(Order, record.order_id) if record.order_id else None
+    customer = db.get(Customer, record.customer_id) if record.customer_id else None
+    vehicle = db.get(Vehicle, record.vehicle_id) if record.vehicle_id else None
+    driver_name = None
+    if vehicle is not None:
+        trip_driver = None
+        if order is not None:
+            trip_driver = db.scalar(select(OrderTrip.driver_id).where(OrderTrip.order_id == order.id, OrderTrip.vehicle_id == vehicle.id, OrderTrip.driver_id.is_not(None)).limit(1))
+        driver = db.get(Driver, trip_driver or vehicle.default_driver_id) if (trip_driver or vehicle.default_driver_id) else None
+        driver_name = driver.full_name if driver else None
+    used = db.execute(
+        select(Material.name, Material.unit, func.sum(-StockMovement.quantity))
+        .join(Material, Material.id == StockMovement.material_id)
+        .where(StockMovement.production_record_id == record.id).group_by(Material.name, Material.unit).order_by(Material.name)
+    ).all()
+    produced_local = record.produced_at.astimezone(local_tz())
+    return {
+        "number": record.waybill_no, "date": produced_local.date().isoformat(), "time": produced_local.strftime("%H:%M"),
+        "customer": (customer.company_name or customer.full_name) if customer else None, "customer_phone": customer.phone if customer else None,
+        "order_number": order.order_number if order else None,
+        "address": order.delivery_address if order and order.delivery_required else None,
+        "product": product.name, "grade": product.grade_class, "volume_m3": float(record.produced_volume_m3), "batch_number": record.batch_number,
+        "vehicle": vehicle.plate_number if vehicle else None, "vehicle_type": vehicle.vehicle_type if vehicle else None, "driver": driver_name,
+        "qc_status": record.qc_status.value if hasattr(record.qc_status, "value") else str(record.qc_status),
+        "materials": [{"name": n, "unit": u, "quantity": float(q)} for n, u, q in used],
+    }
 
 
 def set_qc(db: Session, record: ProductionRecord, data: QcIn, user: User) -> ProductionRecord:

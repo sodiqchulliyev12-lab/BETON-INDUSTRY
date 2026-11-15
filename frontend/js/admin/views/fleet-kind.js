@@ -9,7 +9,7 @@
 import { formatNumber } from '../../ui.js';
 import { http, qs } from '../http.js';
 import { session } from '../auth.js';
-import { bindPeriod, dayBar, monthEnd, monthStart, periodFromQuery, rangeBar } from '../period.js';
+import { bindPeriod, monthEnd, monthStart, periodFromQuery, rangeBar } from '../period.js';
 import { todayISO } from '../../validators.js';
 import { groupedBars } from '../charts.js';
 import {
@@ -108,8 +108,7 @@ export async function render(ctx) {
   root.innerHTML = `
     <div class="kind-head"><img src="${KIND_PHOTO[kind]}" alt="${escapeHtml(VEHICLE_KIND_TITLE[kind])}">
       <div><h2>${escapeHtml(VEHICLE_KIND_TITLE[kind])}</h2><p class="text-muted">${escapeHtml(DESC[kind])}</p>
-        <div class="page-actions">${dayBar({ date: day, label: 'Kun' })}${rangeBar({ from, to })}
-          </div><p class="text-muted">Katta raqam — tanlangan davr (${escapeHtml(monthLabel)}), «kun» — ${escapeHtml(fmtDate(day))}.</p>
+        <div class="page-actions">${rangeBar({ from, to })}</div>
         ${canManage ? `<div class="kind-head__actions">
           <button class="btn btn--primary" data-vehicle>${icon('i-plus')} Yangi transport</button>
           <button class="btn btn--outline" data-expense>${icon('i-plus')} Xarajat</button>

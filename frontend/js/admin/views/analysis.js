@@ -141,7 +141,7 @@ export async function render(ctx) {
   const s10 = facts.length ? `<ul class="facts">${facts.map((f) => `<li>${f}</li>`).join('')}</ul><p class="text-muted">Xulosa avtomatik: faqat bazadagi haqiqiy ma’lumotdan tuziladi. Umumiy «ball» hisoblanmaydi — uni berish uchun asos (maqsad va me’yorlar) hali belgilanmagan.</p>`
     : '<p class="muted">Xulosa uchun hali ma’lumot yo‘q. Buyurtmalar, ishlab chiqarish va laboratoriya yozuvlari kiritilgach bu yerda avtomatik paydo bo‘ladi.</p>';
 
-  root.innerHTML = `<div class="page-actions">${rangeBar({ from, to })}<span class="text-muted">Barcha ko‘rsatkichlar shu davr bo‘yicha; navbat (WIP) — hozirgi holat.</span></div><div class="an">
+  root.innerHTML = `<div class="page-actions">${rangeBar({ from, to })}</div><p class="text-muted">Barcha ko‘rsatkichlar shu davr bo‘yicha; navbat (WIP) — hozirgi holat.</p><div class="an">
     ${section('01', 'Qiymat oqimi sharhi', s01)}${section('02', 'Samaradorlik ko‘rsatkichlari', s02)}${section('03', 'Hozirgi holat xaritasi', s03)}
     ${section('05', 'Kelajakdagi holat xaritasi', s05)}${section('06', 'Isrofning 8 turi', s06)}
     ${section('07', 'Takomillashtirish harakatlar rejasi', s07, canManage ? `<button class="btn btn--primary btn--sm" data-add>${icon('i-plus')} Chora qo‘shish</button>` : '')}

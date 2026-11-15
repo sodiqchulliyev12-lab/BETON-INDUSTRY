@@ -9,7 +9,7 @@ from app.deps import require
 from app.models import User
 from app.models.enums import OrderStatus
 from app.permissions import Perm
-from app.schemas.admin_orders import OrderDetail, OrderItemUpdate, OrderListItem, OrderUpdate, StatusChange
+from app.schemas.admin_orders import AdminOrderCreate, OrderDetail, OrderItemUpdate, OrderListItem, OrderUpdate, StatusChange
 from app.schemas.common import Page
 from app.services import order_admin, telegram
 
@@ -40,6 +40,26 @@ def list_orders(
         db, status=status, q=q, date_from=date_from, date_to=date_to,
         customer_id=customer_id, open_only=open_only, page=page, page_size=page_size,
     )
+
+
+@router.post("", response_model=OrderDetail, status_code=201)
+def create_order(
+    payload: AdminOrderCreate, db: Session = Depends(get_db), user: User = Depends(require(Perm.ORDERS_MANAGE)),
+):
+    """Qo'lda yangi buyurtma: telefon orqali yoki mijoz kelganda. Narx bazadagi amaldagi narxdan olinadi."""
+    from app.models.enums import OrderSource
+    from app.services import orders as order_service
+
+    if payload.manager_id is not None and db.get(User, payload.manager_id) is None:
+        raise HTTPException(status_code=422, detail="Sotuvchi topilmadi.")
+    try:
+        order = order_service.create_order(
+            db, payload, source=OrderSource.ADMIN, note=f"Admin paneldan kiritildi ({user.full_name})",
+            manager_id=payload.manager_id or user.id, changed_by_id=user.id,
+        )
+    except order_service.OrderError as exc:
+        raise HTTPException(status_code=422, detail=exc.message) from None
+    return order_admin.order_detail(db, _load(db, order.id), user.role)
 
 
 @router.get("/{order_id}", response_model=OrderDetail)

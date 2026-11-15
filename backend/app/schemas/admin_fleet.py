@@ -32,6 +32,7 @@ class DriverIn(InputModel):
     full_name: Annotated[str, Field(max_length=150)]
     phone: Annotated[str, Field(max_length=30)]
     license_number: Annotated[str | None, Field(default=None, max_length=30)]
+    telegram: Annotated[str | None, Field(default=None, max_length=64)]
     employment: DriverEmployment = DriverEmployment.STAFF
     is_active: bool = True
     notes: Annotated[str | None, Field(default=None, max_length=1000)]
@@ -46,7 +47,7 @@ class DriverIn(InputModel):
     def _phone(cls, v: str) -> str:
         return normalize_phone(v)
 
-    @field_validator("license_number", "notes")
+    @field_validator("license_number", "notes", "telegram")
     @classmethod
     def _clean(cls, v: str | None) -> str | None:
         return clean_text(v)
@@ -57,6 +58,7 @@ class DriverOut(OrmModel):
     full_name: str
     phone: str
     license_number: str | None
+    telegram: str | None = None
     employment: DriverEmployment
     is_active: bool
     notes: str | None
