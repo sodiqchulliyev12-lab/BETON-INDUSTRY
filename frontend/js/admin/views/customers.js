@@ -3,6 +3,7 @@ import { debounce } from '../../ui.js';
 import { http, qs } from '../http.js';
 import { session } from '../auth.js';
 import { setQuery } from '../app.js';
+import { bindPeriod, rangeBar } from '../period.js';
 import {
   CALLBACK_STATUS, PERM, emptyRow, errorHtml, escapeHtml, field, fmtDate, fmtDateTime, formModal, icon,
   loadingHtml, localErrors, money, paginationHtml, phoneLink, statusBadge, toast, volume,
@@ -27,24 +28,28 @@ function tabs(active) {
 async function renderList(ctx) {
   const { root, query, isCurrent } = ctx;
   const q = query.get('q') || '';
+  const df = query.get('date_from') || '';
+  const dt = query.get('date_to') || '';
   const page = Number(query.get('page')) || 1;
   const canManage = session.can(PERM.CUSTOMERS_MANAGE);
 
   root.innerHTML = `${tabs('list')}
     <div class="page-actions">
       <input class="input search" type="search" placeholder="Ism, kompaniya yoki telefon" value="${escapeHtml(q)}" aria-label="Qidirish">
+      ${rangeBar({ from: df, to: dt, allowFuture: false, label: 'Oxirgi buyurtma', fromParam: 'date_from', toParam: 'date_to' })}
       <span class="page-actions__spacer"></span>
       ${canManage ? `<button type="button" class="btn btn--primary" data-create>${icon('i-plus')} Yangi mijoz</button>` : ''}
     </div>
     <section class="box" id="customersBox">${loadingHtml()}</section>`;
 
+  bindPeriod(root);
   root.querySelector('.search').addEventListener('input', debounce((e) => setQuery({ q: e.target.value.trim(), page: '' }), 400));
   root.querySelector('[data-create]')?.addEventListener('click', () => customerForm(null, (c) => { location.hash = `#/customers/${c.id}`; }));
 
   const box = root.querySelector('#customersBox');
   let data;
   try {
-    data = await http(`/admin/customers${qs({ q, page, page_size: 20 })}`);
+    data = await http(`/admin/customers${qs({ q, date_from: df, date_to: dt, page, page_size: 20 })}`);
   } catch (err) {
     box.innerHTML = errorHtml(err);
     box.querySelector('[data-retry]').addEventListener('click', () => renderList(ctx));
@@ -172,6 +177,8 @@ function customerForm(customer, onSaved) {
 async function renderCallbacks(ctx) {
   const { root, query, isCurrent } = ctx;
   const status = query.get('status') || '';
+  const df = query.get('date_from') || '';
+  const dt = query.get('date_to') || '';
   const page = Number(query.get('page')) || 1;
 
   root.innerHTML = `${tabs('callbacks')}
@@ -180,14 +187,16 @@ async function renderCallbacks(ctx) {
         <option value="">Barcha holatlar</option>
         ${Object.entries(CALLBACK_STATUS).map(([k, v]) => `<option value="${k}" ${status === k ? 'selected' : ''}>${v}</option>`).join('')}
       </select>
+      ${rangeBar({ from: df, to: dt, allowFuture: false, label: 'So‘rov sanasi', fromParam: 'date_from', toParam: 'date_to' })}
     </div>
     <section class="box" id="callbacksBox">${loadingHtml()}</section>`;
-  root.querySelector('.page-actions select').addEventListener('change', (e) => setQuery({ status: e.target.value, page: '' }));
+  root.querySelector('.page-actions > select').addEventListener('change', (e) => setQuery({ status: e.target.value, page: '' }));
+  bindPeriod(root);
 
   const box = root.querySelector('#callbacksBox');
   let data;
   try {
-    data = await http(`/admin/callbacks${qs({ status, page, page_size: 20 })}`);
+    data = await http(`/admin/callbacks${qs({ status, date_from: df, date_to: dt, page, page_size: 20 })}`);
   } catch (err) {
     box.innerHTML = errorHtml(err);
     box.querySelector('[data-retry]').addEventListener('click', () => renderCallbacks(ctx));

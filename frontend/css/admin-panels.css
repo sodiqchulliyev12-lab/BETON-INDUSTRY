@@ -270,3 +270,4 @@
 .fuel-card__big small { font-family: var(--f-body); font-size: var(--fs-xs); color: var(--c-text-muted); font-weight: 600; }
 .fuel-card p { margin: 4px 0 0; font-size: var(--fs-xs); color: var(--c-text-muted); }
 .drv-chip { display: inline-block; margin: 1px 2px 1px 0; padding: 1px 8px; font-size: 0.75rem; border-radius: 999px; background: var(--c-gray-200); white-space: nowrap; }
+.pbar__ym { width: auto; min-width: 82px; padding-block: 7px; }

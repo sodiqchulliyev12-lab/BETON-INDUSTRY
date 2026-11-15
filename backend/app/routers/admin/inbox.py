@@ -2,7 +2,7 @@
 
 Kassa-bank xabarlari moliyaviy va maxfiy — shuning uchun hamma endpointlar SETTINGS_WRITE talab qiladi.
 """
-from datetime import datetime
+from datetime import datetime, date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -116,17 +116,36 @@ class MessageOut(BaseModel):
     link: str | None
 
 
+
+def _day_bounds(date_from, date_to):
+    """Mahalliy kun chegaralari (UTC'ga o'tkazilgan): [from 00:00, to+1 00:00)."""
+    from datetime import datetime as _dt, time as _t, timedelta as _td
+
+    from app.utils.timezone import local_tz
+
+    lo = _dt.combine(date_from, _t.min, tzinfo=local_tz()) if date_from else None
+    hi = _dt.combine(date_to + _td(days=1), _t.min, tzinfo=local_tz()) if date_to else None
+    return lo, hi
+
+
 @router.get("/messages", response_model=Page[MessageOut])
 def list_messages(
     db: Session = Depends(get_db),
     _: User = Depends(require(Perm.SETTINGS_WRITE)),
     chat_id: int | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 30,
 ):
     stmt = select(TelegramMessage, TelegramChat.title).join(TelegramChat)
     if chat_id is not None:
         stmt = stmt.where(TelegramMessage.chat_id == chat_id)
+    lo, hi = _day_bounds(date_from, date_to)
+    if lo:
+        stmt = stmt.where(TelegramMessage.sent_at >= lo)
+    if hi:
+        stmt = stmt.where(TelegramMessage.sent_at < hi)
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     rows = db.execute(
         stmt.order_by(TelegramMessage.sent_at.desc(), TelegramMessage.id.desc()).offset((page - 1) * page_size).limit(page_size)

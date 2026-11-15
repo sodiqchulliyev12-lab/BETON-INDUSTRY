@@ -4,6 +4,7 @@
  */
 import { http, qs } from '../http.js';
 import { setQuery } from '../app.js';
+import { bindPeriod, rangeBar } from '../period.js';
 import { setButtonLoading } from '../../ui.js';
 import {
   emptyRow, errorHtml, escapeHtml, fmtDateTime, icon, loadingHtml, paginationHtml, showFormError, toast, applyApiErrors,
@@ -21,6 +22,8 @@ export async function render(ctx) {
   const { root, query, isCurrent } = ctx;
   root.innerHTML = loadingHtml();
   const chatFilter = query.get('chat') || '';
+  const df = query.get('date_from') || '';
+  const dt = query.get('date_to') || '';
   const page = Number(query.get('page')) || 1;
 
   let webhook;
@@ -32,7 +35,7 @@ export async function render(ctx) {
       http('/admin/telegram/webhook'),
       http('/admin/telegram/chats'),
       http('/admin/telegram/sheets'),
-      http(`/admin/telegram/messages${qs({ chat_id: chatFilter, page, page_size: 30 })}`),
+      http(`/admin/telegram/messages${qs({ chat_id: chatFilter, date_from: df, date_to: dt, page, page_size: 30 })}`),
     ]);
   } catch (err) {
     root.innerHTML = errorHtml(err);
@@ -70,6 +73,7 @@ export async function render(ctx) {
               <option value="">Barcha guruhlar</option>
               ${chats.map((c) => `<option value="${c.chat_id}" ${String(c.chat_id) === chatFilter ? 'selected' : ''}>${escapeHtml(c.title || String(c.chat_id))}</option>`).join('')}
             </select></div>
+          <div class="box__body">${rangeBar({ from: df, to: dt, allowFuture: false, label: 'Xabar sanasi', fromParam: 'date_from', toParam: 'date_to' })}</div>
           <div class="table-wrap"><table class="table">
             <thead><tr><th>Vaqt</th><th>Guruh</th><th>Yozgan</th><th>Xabar</th><th>Google Sheets</th></tr></thead>
             <tbody>${messages.items.length ? messages.items.map((m) => {
@@ -159,6 +163,7 @@ export async function render(ctx) {
     active.addEventListener('change', () => patch({ is_active: active.checked }, active, () => { active.checked = !active.checked; }));
   });
 
+  bindPeriod(root);
   root.querySelector('[data-filter]').addEventListener('change', (e) => setQuery({ chat: e.target.value, page: '' }));
   root.querySelectorAll('[data-page]').forEach((b) => b.addEventListener('click', () => setQuery({ page: b.dataset.page })));
 

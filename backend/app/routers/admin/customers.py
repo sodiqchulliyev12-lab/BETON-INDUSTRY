@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -21,14 +22,29 @@ _DUPLICATE = HTTPException(
 )
 
 
+
+def _day_bounds(date_from, date_to):
+    """Mahalliy kun chegaralari (UTC'ga o'tkazilgan): [from 00:00, to+1 00:00)."""
+    from datetime import datetime as _dt, time as _t, timedelta as _td, date
+
+    from app.utils.timezone import local_tz
+
+    lo = _dt.combine(date_from, _t.min, tzinfo=local_tz()) if date_from else None
+    hi = _dt.combine(date_to + _td(days=1), _t.min, tzinfo=local_tz()) if date_to else None
+    return lo, hi
+
+
 @router.get("", response_model=Page[CustomerListItem])
 def list_customers(
     db: Session = Depends(get_db),
     _: User = Depends(require(Perm.CUSTOMERS_READ)),
     q: Annotated[str | None, Query(max_length=100)] = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
+    # date_from/date_to — shu davrda buyurtma bergan mijozlar (oxirgi buyurtma sanasi bo'yicha)
     # Buyurtmalar soni va hajmi (bekor qilinganlarsiz) — alohida subquery
     stats = (
         select(
@@ -53,6 +69,11 @@ def list_customers(
             conditions.append(Customer.phone.like(like_pattern(digits)))
         stmt = stmt.where(or_(*conditions))
 
+    lo, hi = _day_bounds(date_from, date_to)
+    if lo:
+        stmt = stmt.where(stats.c.last_order_at >= lo)
+    if hi:
+        stmt = stmt.where(stats.c.last_order_at < hi)
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     rows = db.execute(
         stmt.order_by(stats.c.last_order_at.desc().nulls_last(), Customer.id.desc())

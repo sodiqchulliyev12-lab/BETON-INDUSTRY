@@ -7,6 +7,7 @@ import { debounce } from '../../ui.js';
 import { http, qs } from '../http.js';
 import { session } from '../auth.js';
 import { setQuery } from '../app.js';
+import { bindPeriod, rangeBar } from '../period.js';
 import { createPicker, osmLink, showRouteMap, toPoint } from '../../map.js';
 import {
   ORDER_STATUS, OWNERSHIP, PERM, TRIP_STATUS, confirmAction, emptyRow, errorHtml, escapeHtml, field, fmtDate,
@@ -39,16 +40,15 @@ async function renderList({ root, query, isCurrent }) {
         <option value="">Barcha holatlar</option>
         ${Object.entries(ORDER_STATUS).map(([k, v]) => `<option value="${k}" ${filters.status === k ? 'selected' : ''}>${v}</option>`).join('')}
       </select>
-      <label class="text-muted">Sana:</label>
-      <input class="input" type="date" name="date_from" value="${escapeHtml(filters.date_from)}" aria-label="Yetkazish sanasi (dan)">
-      <input class="input" type="date" name="date_to" value="${escapeHtml(filters.date_to)}" aria-label="Yetkazish sanasi (gacha)">
+      ${rangeBar({ from: filters.date_from, to: filters.date_to, allowFuture: true, label: 'Yetkazish', fromParam: 'date_from', toParam: 'date_to' })}
       ${filters.q || filters.status || filters.date_from || filters.date_to ? '<button type="button" class="btn btn--outline btn--sm" data-reset>Tozalash</button>' : ''}
     </div>
     <section class="box" id="ordersBox">${loadingHtml()}</section>`;
 
   const bar = root.querySelector('.page-actions');
   bar.querySelector('[name=q]').addEventListener('input', debounce((e) => setQuery({ q: e.target.value.trim(), page: '' }), 400));
-  bar.querySelectorAll('select, input[type=date]').forEach((input) => {
+  bindPeriod(bar);
+  bar.querySelectorAll('select[name]').forEach((input) => {
     input.addEventListener('change', () => setQuery({ [input.name]: input.value, page: '' }));
   });
   bar.querySelector('[data-reset]')?.addEventListener('click', () => setQuery({ q: '', status: '', date_from: '', date_to: '', page: '' }));

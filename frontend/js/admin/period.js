@@ -1,5 +1,5 @@
 /**
- * Davr tanlash: orqaga ‹ / oldinga › tugmalari, tayyor davrlar (bugun, kecha, 7 kun, bu oy, o'tgan oy…)
+ * Davr tanlash: orqaga ‹ / oldinga › tugmalari, YIL va OY tanlash, tayyor davrlar (bugun, kecha, 7 kun, bu oy…)
  * va qo'lda sana tanlash. Holat URL (hash) query'sida saqlanadi: ?date=… yoki ?from=…&to=…
  * Boshqa filtrlar (ombor, marka, haydovchi…) davr o'zgarganda saqlanib qoladi.
  */
@@ -8,6 +8,8 @@ import { escapeHtml } from './components.js';
 import { todayISO } from '../validators.js';
 
 const DAY = 864e5;
+const FIRST_YEAR = 2024;
+const MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
 const parse = (iso) => new Date(`${iso}T00:00:00Z`);
 const fmt = (d) => d.toISOString().slice(0, 10);
 export const addDays = (iso, n) => fmt(new Date(parse(iso).getTime() + n * DAY));
@@ -23,6 +25,7 @@ const addMonths = (iso, n) => {
   return fmt(d);
 };
 const spanDays = (from, to) => Math.round((parse(to) - parse(from)) / DAY) + 1;
+const pad2 = (n) => String(n).padStart(2, '0');
 
 const PRESETS = [
   ['today', 'Bugun'], ['yesterday', 'Kecha'], ['7d', 'Oxirgi 7 kun'], ['30d', 'Oxirgi 30 kun'], ['month', 'Bu oy'],
@@ -52,7 +55,17 @@ export function periodFromQuery(query, defaults = {}) {
   return from <= to ? { from, to } : { from: to, to: from };
 }
 
-/** Bitta kun: ‹ [sana] › [Bugun] */
+/** Yil va oy tanlash (ikkita ochiladigan ro'yxat) */
+function ymSelects(year, month, { allowFuture, withAll }) {
+  const maxYear = Number(todayISO().slice(0, 4)) + (allowFuture ? 1 : 0);
+  const years = [];
+  for (let y = maxYear; y >= FIRST_YEAR; y -= 1) years.push(y);
+  if (year && !years.includes(Number(year))) years.push(Number(year));
+  return `<select class="select pbar__ym" data-year aria-label="Yil"><option value="">Yil</option>${years.map((y) => `<option value="${y}" ${String(y) === String(year) ? 'selected' : ''}>${y}</option>`).join('')}</select>
+    <select class="select pbar__ym" data-month aria-label="Oy"><option value="">Oy</option>${withAll ? `<option value="all" ${month === 'all' ? 'selected' : ''}>Butun yil</option>` : ''}${MONTHS.map((m, i) => `<option value="${i + 1}" ${String(month) === String(i + 1) ? 'selected' : ''}>${m}</option>`).join('')}</select>`;
+}
+
+/** Bitta kun: ‹ [sana] › [Yil] [Oy] [Bugun] */
 export function dayBar({ date, allowFuture = false, label = 'Sana', param = 'date' }) {
   const t = todayISO();
   return `<div class="pbar" data-pbar="day" data-param="${param}" data-future="${allowFuture ? 1 : 0}">
@@ -60,21 +73,32 @@ export function dayBar({ date, allowFuture = false, label = 'Sana', param = 'dat
     <button type="button" class="btn btn--outline btn--sm pbar__btn" data-prev aria-label="Oldingi kun" title="Oldingi kun">‹</button>
     <input class="input pbar__date" type="date" value="${escapeHtml(date)}" ${allowFuture ? '' : `max="${t}"`} aria-label="${escapeHtml(label)}">
     <button type="button" class="btn btn--outline btn--sm pbar__btn" data-next aria-label="Keyingi kun" title="Keyingi kun" ${!allowFuture && date >= t ? 'disabled' : ''}>›</button>
+    ${ymSelects(date.slice(0, 4), String(Number(date.slice(5, 7))), { allowFuture, withAll: false })}
     ${date !== t ? '<button type="button" class="btn btn--outline btn--sm" data-today>Bugun</button>' : ''}
   </div>`;
 }
 
-/** Davr: ‹ [dan] – [gacha] › [tayyor davrlar] */
-export function rangeBar({ from, to, allowFuture = false, label = 'Davr' }) {
+/** Davr: ‹ [dan] – [gacha] › [Yil] [Oy] [tayyor davrlar]. fromParam/toParam — URL nomlari; empty — bo'sh davr ruxsat */
+export function rangeBar({ from, to, allowFuture = false, label = 'Davr', fromParam = 'from', toParam = 'to' }) {
   const t = todayISO();
-  const preset = PRESETS.find(([k]) => { const [a, b] = presetRange(k); return a === from && b === to; });
-  return `<div class="pbar" data-pbar="range" data-future="${allowFuture ? 1 : 0}">
+  const has = Boolean(from && to);
+  const preset = has && PRESETS.find(([k]) => { const [a, b] = presetRange(k); return a === from && b === to; });
+  let year = '';
+  let month = '';
+  if (has && from.slice(0, 4) === to.slice(0, 4)) {
+    year = from.slice(0, 4);
+    const yEnd = `${year}-12-31`;
+    if (from === `${year}-01-01` && (to === yEnd || (to === t && t.slice(0, 4) === year))) month = 'all';
+    else if (from === monthStart(from) && (to === monthEnd(from) || (to === t && monthStart(t) === from))) month = String(Number(from.slice(5, 7)));
+  }
+  return `<div class="pbar" data-pbar="range" data-future="${allowFuture ? 1 : 0}" data-fp="${fromParam}" data-tp="${toParam}">
     <span class="pbar__label">${escapeHtml(label)}</span>
     <button type="button" class="btn btn--outline btn--sm pbar__btn" data-prev aria-label="Oldingi davr" title="Oldingi davr">‹</button>
-    <input class="input pbar__date" type="date" value="${escapeHtml(from)}" data-from ${allowFuture ? '' : `max="${t}"`} aria-label="Boshlanish sanasi">
+    <input class="input pbar__date" type="date" value="${escapeHtml(from || '')}" data-from ${allowFuture ? '' : `max="${t}"`} aria-label="Boshlanish sanasi">
     <span class="pbar__dash">–</span>
-    <input class="input pbar__date" type="date" value="${escapeHtml(to)}" data-to ${allowFuture ? '' : `max="${t}"`} aria-label="Tugash sanasi">
-    <button type="button" class="btn btn--outline btn--sm pbar__btn" data-next aria-label="Keyingi davr" title="Keyingi davr" ${!allowFuture && to >= t ? 'disabled' : ''}>›</button>
+    <input class="input pbar__date" type="date" value="${escapeHtml(to || '')}" data-to ${allowFuture ? '' : `max="${t}"`} aria-label="Tugash sanasi">
+    <button type="button" class="btn btn--outline btn--sm pbar__btn" data-next aria-label="Keyingi davr" title="Keyingi davr" ${!allowFuture && to && to >= t ? 'disabled' : ''}>›</button>
+    ${ymSelects(year, month, { allowFuture, withAll: true })}
     <select class="select pbar__preset" data-preset aria-label="Tayyor davrlar"><option value="">Tayyor davrlar…</option>${PRESETS.map(([k, l]) => `<option value="${k}" ${preset && preset[0] === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
   </div>`;
 }
@@ -85,6 +109,9 @@ export function bindPeriod(root, extra = { page: '' }) {
   root.querySelectorAll('.pbar').forEach((bar) => {
     const future = bar.dataset.future === '1';
     const clamp = (iso) => (future || iso <= t ? iso : t);
+    const yearEl = bar.querySelector('[data-year]');
+    const monthEl = bar.querySelector('[data-month]');
+
     if (bar.dataset.pbar === 'day') {
       const param = bar.dataset.param || 'date';
       const input = bar.querySelector('input');
@@ -93,14 +120,26 @@ export function bindPeriod(root, extra = { page: '' }) {
       bar.querySelector('[data-prev]').addEventListener('click', () => go(addDays(input.value || t, -1)));
       bar.querySelector('[data-next]').addEventListener('click', () => go(addDays(input.value || t, 1)));
       bar.querySelector('[data-today]')?.addEventListener('click', () => go(''));
+      const ym = () => {
+        const base = input.value || t;
+        const y = yearEl.value || base.slice(0, 4);
+        const m = monthEl.value && monthEl.value !== 'all' ? monthEl.value : String(Number(base.slice(5, 7)));
+        const last = Number(monthEnd(`${y}-${pad2(m)}-01`).slice(8));
+        go(`${y}-${pad2(m)}-${pad2(Math.min(Number(base.slice(8, 10)), last))}`);
+      };
+      yearEl.addEventListener('change', ym);
+      monthEl.addEventListener('change', ym);
       return;
     }
+
+    const fp = bar.dataset.fp || 'from';
+    const tp = bar.dataset.tp || 'to';
     const fromEl = bar.querySelector('[data-from]');
     const toEl = bar.querySelector('[data-to]');
     const go = (from, to) => {
       if (!from || !to) return;
       if (from > to) [from, to] = [to, from];
-      setQuery({ from, to: clamp(to), ...extra });
+      setQuery({ [fp]: from, [tp]: clamp(to), ...extra });
     };
     fromEl.addEventListener('change', () => go(fromEl.value, toEl.value));
     toEl.addEventListener('change', () => go(fromEl.value, toEl.value));
@@ -108,8 +147,8 @@ export function bindPeriod(root, extra = { page: '' }) {
       if (e.target.value) go(...presetRange(e.target.value));
     });
     const shift = (dir) => {
-      const from = fromEl.value;
-      const to = toEl.value;
+      const from = fromEl.value || monthStart(t);
+      const to = toEl.value || t;
       const wholeMonth = from === monthStart(from) && (to === monthEnd(from) || (to === t && monthStart(t) === from));
       if (wholeMonth) {
         const nf = addMonths(from, dir);
@@ -121,5 +160,18 @@ export function bindPeriod(root, extra = { page: '' }) {
     };
     bar.querySelector('[data-prev]').addEventListener('click', () => shift(-1));
     bar.querySelector('[data-next]').addEventListener('click', () => shift(1));
+    // yil / oy: oy tanlanmasa yoki «Butun yil» bo'lsa — butun yil
+    const ym = () => {
+      const y = yearEl.value || (fromEl.value || t).slice(0, 4);
+      const m = monthEl.value;
+      if (!m || m === 'all') {
+        go(`${y}-01-01`, `${y}-12-31`);
+      } else {
+        const s = `${y}-${pad2(m)}-01`;
+        go(s, monthEnd(s));
+      }
+    };
+    yearEl.addEventListener('change', ym);
+    monthEl.addEventListener('change', ym);
   });
 }
