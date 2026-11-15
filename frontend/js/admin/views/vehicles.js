@@ -12,8 +12,8 @@ import {
   fmtDateTime, formModal, icon, loadingHtml, localErrors, money, numberOrNull, phoneLink, statusBadge, toast, volume,
 } from '../components.js';
 
-const KIND = { mixer: 'Mikser', pump: 'Beton nasosi', other: 'Boshqa' };
-const KIND_TITLE = { mixer: 'Mikserlar', pump: 'Beton nasoslari', other: 'Boshqa transport' };
+const KIND = { mixer: 'Mikser', pump: 'Beton nasosi', other: 'Yuk avtomobili' };
+const KIND_TITLE = { mixer: 'Mikserlar', pump: 'Beton nasoslari', other: 'Yuk avtomobillari' };
 
 export async function render(ctx) {
   const { root, isCurrent, meta } = ctx;
@@ -98,7 +98,7 @@ export async function render(ctx) {
 }
 
 function vehicleForm(vehicle, drivers, onSaved, defaultKind = null) {
-  const v = vehicle || { plate_number: '', vehicle_type: defaultKind === 'pump' ? 'Beton nasosi' : (defaultKind === 'other' ? '' : 'Beton mikser'), kind: defaultKind || 'mixer', ownership: 'own', capacity_m3: null, default_driver_id: null, contact_phone: '', rental_company: '', status: 'free', is_active: true, notes: '' };
+  const v = vehicle || { plate_number: '', vehicle_type: defaultKind === 'pump' ? 'Beton nasosi' : (defaultKind === 'other' ? 'Yuk avtomobili' : 'Beton mikser'), kind: defaultKind || 'mixer', ownership: 'own', capacity_m3: null, default_driver_id: null, contact_phone: '', rental_company: '', status: 'free', is_active: true, notes: '' };
   const driverOptions = [{ value: '', label: '— tanlanmagan —' }].concat(
     drivers.filter((d) => d.is_active || d.id === v.default_driver_id).map((d) => ({ value: d.id, label: d.full_name })),
   );

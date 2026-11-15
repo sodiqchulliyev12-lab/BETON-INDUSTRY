@@ -13,7 +13,7 @@ import {
   icon, loadingHtml, localErrors, money, numberOrNull, statusBadge, toast, volume,
 } from '../components.js';
 
-const KIND = { mixer: 'Mikser', pump: 'Beton nasosi', other: 'Boshqa' };
+const KIND = { mixer: 'Mikser', pump: 'Beton nasosi', other: 'Yuk avtomobili' };
 const EXPENSE = { fuel: 'Yoqilg‘i', repair: 'Ta’mir', tires: 'Shina', insurance: 'Sug‘urta', other: 'Boshqa' };
 const nf = (v, d = 0) => formatNumber(v || 0, d);
 
@@ -79,7 +79,7 @@ async function overview(ctx, holder, withList = false) {
       { label: 'Yoqilg‘i xarajati', cls: 'c3', points: s.daily.map((d, i) => [i, (d.fuel_cost / maxFuel) * 100]) },
     ];
     const pages = Math.max(1, Math.ceil(mon.total / mon.page_size));
-    const kindOpts = [['', 'Transport turi (hammasi)'], ['mixer', 'Mikserlar'], ['pump', 'Beton nasoslari'], ['other', 'Boshqa']];
+    const kindOpts = [['', 'Transport turi (hammasi)'], ['mixer', 'Mikserlar'], ['pump', 'Beton nasoslari'], ['other', 'Yuk avtomobillari']];
     const ownOpts = [['', 'Egalik turi (hammasi)'], ...OWN_ROWS];
     const vsOpts = [['', 'Holati (hammasi)'], ['free', 'Bo‘sh'], ['busy', 'Band'], ['repair', 'Ta’mirda']];
     const drvOpts = [['', 'Haydovchi (hammasi)']].concat(drivers.filter((d) => d.is_active).map((d) => [d.id, d.full_name]));
@@ -91,7 +91,7 @@ async function overview(ctx, holder, withList = false) {
         <span class="page-actions__spacer"></span><a class="btn btn--primary" href="#/planning">${icon('i-plus')} Yangi reys</a>
       </div>
       <div class="stats">
-        ${stat({ label: 'Jami transport', value: nf(s.total), hint: `Mikser ${s.by_kind.mixer} · nasos ${s.by_kind.pump} · boshqa ${s.by_kind.other}`, tone: 'accent' })}
+        ${stat({ label: 'Jami transport', value: nf(s.total), hint: `Mikser ${s.by_kind.mixer} · nasos ${s.by_kind.pump} · yuk ${s.by_kind.other}`, tone: 'accent' })}
         <div class="stat stat--info"><span class="stat__label">Ishlayotgan</span><div class="stat--row"><span class="stat__value">${nf(s.busy)}</span>${ring(s.busy_pct, 'bandlik')}</div></div>
         ${stat({ label: 'Bo‘sh (erkin)', value: nf(s.free), tone: 'success' })}
         ${stat({ label: 'Reysda', value: nf(s.on_road), hint: `Faol qatnov: ${s.active_trips}` })}
@@ -115,8 +115,10 @@ async function overview(ctx, holder, withList = false) {
           <div class="box__body fleet-card">
             <div class="fleet-card__row"><div><img class="fleet-card__img" src="../assets/img/mixer-static.svg?v=1" alt="" width="360" height="170"><span class="fleet-card__cap">Beton mikser</span></div>
               <div class="own-list">${OWN_ROWS.map(([o, l]) => `<div><span>${l}</span><span><b>${cnt('mixer', o)}</b> ta ${cnt('mixer', o) ? `<span class="tag">${activePct('mixer', o)}% faol</span>` : ''}</span></div>`).join('')}</div></div>
-            <div class="fleet-card__row"><div><img class="fleet-card__img" src="../assets/img/pump-truck.svg?v=1" alt="" width="360" height="170"><span class="fleet-card__cap">Beton nasosi</span></div>
+            <div class="fleet-card__row"><div><img class="fleet-card__img" src="../assets/img/pump-truck.webp?v=2" alt="" width="718" height="450" loading="lazy"><span class="fleet-card__cap">Beton nasosi</span></div>
               <div class="own-list">${OWN_ROWS.map(([o, l]) => `<div><span>${l}</span><span><b>${cnt('pump', o)}</b> ta ${cnt('pump', o) ? `<span class="tag">${activePct('pump', o)}% faol</span>` : ''}</span></div>`).join('')}</div></div>
+            <div class="fleet-card__row"><div><img class="fleet-card__img" src="../assets/img/yuk-avtomobil.webp?v=1" alt="" width="989" height="608" loading="lazy"><span class="fleet-card__cap">Yuk avtomobili</span></div>
+              <div class="own-list">${OWN_ROWS.map(([o, l]) => `<div><span>${l}</span><span><b>${cnt('other', o)}</b> ta ${cnt('other', o) ? `<span class="tag">${activePct('other', o)}% faol</span>` : ''}</span></div>`).join('')}</div></div>
             <h3 class="an-sub">Yoqilg‘i va reyslar (${s.daily.length} kun)</h3>
             ${totalTrips || totalFuel ? lineChart(fuelSeries, s.daily.map((_, i) => i), { height: 150, xLabel: (i) => fmtDate(s.daily[i].date).slice(0, 5) }) : '<p class="muted">Reys yoki yoqilg‘i xarajati kiritilmagan.</p>'}
             ${totalTrips || totalFuel ? `<p class="text-muted">Jami: ${nf(totalTrips)} reys, yoqilg‘i ${nf(totalFuel)} so‘m (har chiziq o‘z maksimumiga nisbatan).</p>` : ''}

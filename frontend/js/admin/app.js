@@ -32,7 +32,7 @@ const NAV = [
       { route: 'vehicles', label: 'Transportlar', view: 'transport' },
       { route: 'mixers', label: 'Mikserlar', view: 'vehicles', kind: 'mixer' },
       { route: 'pumps', label: 'Beton nasoslari', view: 'vehicles', kind: 'pump' },
-      { route: 'others', label: 'Boshqa transport', view: 'vehicles', kind: 'other' },
+      { route: 'others', label: 'Yuk avtomobillari', view: 'vehicles', kind: 'other' },
       { route: 'planning', label: 'Logistika rejalashtirish' },
       { route: 'trips', label: 'Qatnovlar', view: 'vehicles' },
       { route: 'expenses', label: 'Xarajatlar' },
