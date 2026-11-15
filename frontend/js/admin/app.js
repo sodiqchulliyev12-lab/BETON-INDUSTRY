@@ -29,10 +29,11 @@ const NAV = [
   ] },
   { group: 'Operatsiyalar', items: [
     { route: 'transport', label: 'Transport', icon: 'i-truck', perm: PERM.FLEET_READ, children: [
-      { route: 'vehicles', label: 'Transportlar', view: 'transport' },
-      { route: 'mixers', label: 'Mikserlar', view: 'vehicles', kind: 'mixer' },
-      { route: 'pumps', label: 'Beton nasoslari', view: 'vehicles', kind: 'pump' },
-      { route: 'others', label: 'Yuk avtomobillari', view: 'vehicles', kind: 'other' },
+      { route: 'vehicles', label: 'Transport analizi', view: 'transport' },
+      { route: 'mixers', label: 'Mikserlar', view: 'fleet-kind', kind: 'mixer' },
+      { route: 'pumps', label: 'Beton nasoslari', view: 'fleet-kind', kind: 'pump' },
+      { route: 'others', label: 'Yuk avtomobillari', view: 'fleet-kind', kind: 'other' },
+      { route: 'cars', label: 'Yengil avtomobillar', view: 'fleet-kind', kind: 'car' },
       { route: 'planning', label: 'Logistika rejalashtirish' },
       { route: 'trips', label: 'Qatnovlar', view: 'vehicles' },
       { route: 'expenses', label: 'Xarajatlar' },
@@ -86,6 +87,7 @@ const VIEWS = {
   settings: () => import('./views/settings.js'),
   vehicles: () => import('./views/vehicles.js'),
   transport: () => import('./views/transport.js'),
+  'fleet-kind': () => import('./views/fleet-kind.js'),
   planning: () => import('./views/transport.js'),
   expenses: () => import('./views/transport.js'),
   'fleet-report': () => import('./views/transport.js'),

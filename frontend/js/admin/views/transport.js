@@ -9,12 +9,12 @@ import { setQuery } from '../app.js';
 import { todayISO } from '../../validators.js';
 import { donut, groupedBars, lineChart, ring } from '../charts.js';
 import {
-  OWNERSHIP, PERM, TRIP_STATUS, VEHICLE_STATUS, confirmAction, emptyRow, errorHtml, escapeHtml, field, fmtDate, formModal,
+  EXPENSE_LABEL, KIND_PHOTO, KIND_ROUTE, OWNERSHIP, PERM, TRIP_STATUS, VEHICLE_KIND_TITLE, ownLabel, VEHICLE_STATUS, confirmAction, emptyRow, errorHtml, escapeHtml, field, fmtDate, formModal,
   icon, loadingHtml, localErrors, money, numberOrNull, statusBadge, toast, volume,
 } from '../components.js';
 
-const KIND = { mixer: 'Mikser', pump: 'Beton nasosi', other: 'Yuk avtomobili' };
-const EXPENSE = { fuel: 'Yoqilg‘i', repair: 'Ta’mir', tires: 'Shina', insurance: 'Sug‘urta', other: 'Boshqa' };
+const KIND = { mixer: 'Mikser', pump: 'Beton nasosi', other: 'Yuk avtomobili', car: 'Yengil avtomobil' };
+const EXPENSE = EXPENSE_LABEL;
 const nf = (v, d = 0) => formatNumber(v || 0, d);
 
 function stat({ label, value, hint = '', tone = '' }) {
@@ -43,12 +43,13 @@ export async function render(ctx) {
   if (route === 'planning') return planning(ctx, holder);
   if (route === 'expenses') return expenses(ctx, holder);
   if (route === 'fleet-report') return report(ctx, holder);
-  return overview(ctx, holder, route === 'vehicles');
+  return overview(ctx, holder, false);
 }
 
 /* ---------------------------------------------------------------- Transport dashboard */
 
 const OWN_ROWS = [['own', 'O‘zimizniki'], ['rented', 'Arenda'], ['per_trip', 'Reys bay']];
+const TILE_KINDS = ['mixer', 'pump', 'other', 'car'];
 const sel = (id, opts, val) => `<select class="select" id="${id}">${opts.map(([v, l]) => `<option value="${escapeHtml(v)}" ${String(v) === String(val) ? 'selected' : ''}>${escapeHtml(l)}</option>`).join('')}</select>`;
 
 async function overview(ctx, holder, withList = false) {
@@ -68,7 +69,7 @@ async function overview(ctx, holder, withList = false) {
     const h0 = Math.min(8, ...(hoursUsed.length ? hoursUsed : [8]));
     const h1 = Math.max(18, ...(hoursUsed.length ? hoursUsed : [18]));
     const xs = Array.from({ length: h1 - h0 + 1 }, (_, i) => h0 + i);
-    const groups = [['mixer_own', 'Mikserlar (o‘zimizniki)', 'c0'], ['mixer_hired', 'Mikserlar (arenda / reys bay)', 'c6'], ['pump_own', 'Nasoslar (o‘zimizniki)', 'c4'], ['pump_hired', 'Nasoslar (arenda / reys bay)', 'c1']];
+    const groups = [['mixer_own', 'Mikserlar (o‘zimizniki)', 'c0'], ['mixer_hired', 'Mikserlar (arenda / reys bay)', 'c6'], ['pump_own', 'Nasoslar (o‘zimizniki)', 'c4'], ['pump_hired', 'Nasoslar (arenda / soatbay)', 'c1']];
     const hourlySeries = groups.map(([k, label, cls]) => ({ label, cls, points: hourly[k] || [] }));
     const totalTrips = s.daily.reduce((a, d) => a + d.trips, 0);
     const totalFuel = s.daily.reduce((a, d) => a + d.fuel_cost, 0);
@@ -79,8 +80,8 @@ async function overview(ctx, holder, withList = false) {
       { label: 'Yoqilg‘i xarajati', cls: 'c3', points: s.daily.map((d, i) => [i, (d.fuel_cost / maxFuel) * 100]) },
     ];
     const pages = Math.max(1, Math.ceil(mon.total / mon.page_size));
-    const kindOpts = [['', 'Transport turi (hammasi)'], ['mixer', 'Mikserlar'], ['pump', 'Beton nasoslari'], ['other', 'Yuk avtomobillari']];
-    const ownOpts = [['', 'Egalik turi (hammasi)'], ...OWN_ROWS];
+    const kindOpts = [['', 'Transport turi (hammasi)'], ['mixer', 'Mikserlar'], ['pump', 'Beton nasoslari'], ['other', 'Yuk avtomobillari'], ['car', 'Yengil avtomobillar']];
+    const ownOpts = [['', 'Egalik turi (hammasi)'], ['own', 'O‘zimizniki'], ['rented', 'Arenda'], ['per_trip', 'Reys bay / soatbay']];
     const vsOpts = [['', 'Holati (hammasi)'], ['free', 'Bo‘sh'], ['busy', 'Band'], ['repair', 'Ta’mirda']];
     const drvOpts = [['', 'Haydovchi (hammasi)']].concat(drivers.filter((d) => d.is_active).map((d) => [d.id, d.full_name]));
 
@@ -91,7 +92,7 @@ async function overview(ctx, holder, withList = false) {
         <span class="page-actions__spacer"></span><a class="btn btn--primary" href="#/planning">${icon('i-plus')} Yangi reys</a>
       </div>
       <div class="stats">
-        ${stat({ label: 'Jami transport', value: nf(s.total), hint: `Mikser ${s.by_kind.mixer} · nasos ${s.by_kind.pump} · yuk ${s.by_kind.other}`, tone: 'accent' })}
+        ${stat({ label: 'Jami transport', value: nf(s.total), hint: `Mikser ${s.by_kind.mixer} · nasos ${s.by_kind.pump} · yuk ${s.by_kind.other} · yengil ${s.by_kind.car}`, tone: 'accent' })}
         <div class="stat stat--info"><span class="stat__label">Ishlayotgan</span><div class="stat--row"><span class="stat__value">${nf(s.busy)}</span>${ring(s.busy_pct, 'bandlik')}</div></div>
         ${stat({ label: 'Bo‘sh (erkin)', value: nf(s.free), tone: 'success' })}
         ${stat({ label: 'Reysda', value: nf(s.on_road), hint: `Faol qatnov: ${s.active_trips}` })}
@@ -105,20 +106,22 @@ async function overview(ctx, holder, withList = false) {
           <section class="box"><div class="box__head"><h2 class="box__title">Reyslar monitoringi (${escapeHtml(fmtDate(f.date))})</h2></div>
             <div class="table-wrap"><table class="table"><thead><tr><th>Reys</th><th>Transport</th><th>Turi</th><th>Haydovchi</th><th>Buyurtmachi / manzil</th><th class="num">Hajm</th><th>Holat</th></tr></thead>
             <tbody>${mon.items.length ? mon.items.map((t) => `<tr class="is-link" data-href="#/orders/${t.order_id}"><td class="strong nowrap"><a href="#/orders/${t.order_id}">${escapeHtml(t.order_number)}</a> №${t.trip_no}</td>
-              <td class="nowrap">${escapeHtml(t.plate_number)}</td><td>${escapeHtml(KIND[t.kind] || t.kind)} <span class="muted">(${escapeHtml(OWNERSHIP[t.ownership])})</span></td><td>${escapeHtml(t.driver || '—')}</td>
+              <td class="nowrap">${escapeHtml(t.plate_number)}</td><td>${escapeHtml(KIND[t.kind] || t.kind)} <span class="muted">(${escapeHtml(ownLabel(t.kind, t.ownership))})</span></td><td>${escapeHtml(t.driver || '—')}</td>
               <td>${escapeHtml(t.customer || '—')}${t.address ? `<br><span class="muted">${escapeHtml(t.address)}</span>` : ''}</td><td class="num">${volume(t.volume_m3)}</td><td>${statusBadge(t.status, TRIP_STATUS)}</td></tr>`).join('')
     : emptyRow(7, 'Tanlangan sana va filtrlar bo‘yicha qatnovlar yo‘q.')}</tbody></table></div>
             <div class="pagination"><span>${mon.total ? `${(mon.page - 1) * mon.page_size + 1}–${Math.min(mon.total, mon.page * mon.page_size)} / ${mon.total} ta natija` : '0 ta natija'}</span>
               <div class="btn-row"><button class="btn btn--outline btn--sm" data-page="${f.page - 1}" ${f.page <= 1 ? 'disabled' : ''}>← Oldingi</button><button class="btn btn--outline btn--sm" data-page="${f.page + 1}" ${f.page >= pages ? 'disabled' : ''}>Keyingi →</button></div></div></section>
         </div>
-        <section class="box"><div class="box__head"><h2 class="box__title">Mikser va nasoslar (egalik bo‘yicha)</h2></div>
+        <section class="box"><div class="box__head"><h2 class="box__title">Transportlar (egalik bo‘yicha)</h2></div>
           <div class="box__body fleet-card">
-            <div class="fleet-card__row"><div><img class="fleet-card__img" src="../assets/img/mixer-static.svg?v=1" alt="" width="360" height="170"><span class="fleet-card__cap">Beton mikser</span></div>
-              <div class="own-list">${OWN_ROWS.map(([o, l]) => `<div><span>${l}</span><span><b>${cnt('mixer', o)}</b> ta ${cnt('mixer', o) ? `<span class="tag">${activePct('mixer', o)}% faol</span>` : ''}</span></div>`).join('')}</div></div>
-            <div class="fleet-card__row"><div><img class="fleet-card__img" src="../assets/img/pump-truck.webp?v=2" alt="" width="718" height="450" loading="lazy"><span class="fleet-card__cap">Beton nasosi</span></div>
-              <div class="own-list">${OWN_ROWS.map(([o, l]) => `<div><span>${l}</span><span><b>${cnt('pump', o)}</b> ta ${cnt('pump', o) ? `<span class="tag">${activePct('pump', o)}% faol</span>` : ''}</span></div>`).join('')}</div></div>
-            <div class="fleet-card__row"><div><img class="fleet-card__img" src="../assets/img/yuk-avtomobil.webp?v=1" alt="" width="989" height="608" loading="lazy"><span class="fleet-card__cap">Yuk avtomobili</span></div>
-              <div class="own-list">${OWN_ROWS.map(([o, l]) => `<div><span>${l}</span><span><b>${cnt('other', o)}</b> ta ${cnt('other', o) ? `<span class="tag">${activePct('other', o)}% faol</span>` : ''}</span></div>`).join('')}</div></div>
+            <p class="text-muted">Rasmni bossangiz, shu turdagi transport bo‘yicha batafsil ma’lumot ochiladi.</p>
+            ${TILE_KINDS.map((k) => `<a class="fleet-tile" href="#/${KIND_ROUTE[k]}">
+              <span class="fleet-tile__pic"><img src="${KIND_PHOTO[k]}" alt="${escapeHtml(VEHICLE_KIND_TITLE[k])}" loading="lazy"></span>
+              <span class="fleet-tile__body"><strong>${escapeHtml(VEHICLE_KIND_TITLE[k])} <small>${s.by_kind[k]} ta</small></strong>
+                <span class="own-list">${k === 'car'
+    ? `<span><span>O‘zimizniki</span><span><b>${cnt(k, 'own')}</b> ta</span></span><span><span>Arenda</span><span><b>${cnt(k, 'rented')}</b> ta</span></span>
+       <span><span>Taksi (shu oy)</span><span><b>${s.taxi_month.rides}</b> marta${s.taxi_month.amount ? ` · ${nf(s.taxi_month.amount)} so‘m` : ''}</span></span>`
+    : OWN_ROWS.map(([o, l]) => `<span><span>${o === 'per_trip' && k === 'pump' ? 'Soatbay' : l}</span><span><b>${cnt(k, o)}</b> ta ${cnt(k, o) ? `<i class="tag">${activePct(k, o)}% faol</i>` : ''}</span></span>`).join('')}</span></span></a>`).join('')}
             <h3 class="an-sub">Yoqilg‘i va reyslar (${s.daily.length} kun)</h3>
             ${totalTrips || totalFuel ? lineChart(fuelSeries, s.daily.map((_, i) => i), { height: 150, xLabel: (i) => fmtDate(s.daily[i].date).slice(0, 5) }) : '<p class="muted">Reys yoki yoqilg‘i xarajati kiritilmagan.</p>'}
             ${totalTrips || totalFuel ? `<p class="text-muted">Jami: ${nf(totalTrips)} reys, yoqilg‘i ${nf(totalFuel)} so‘m (har chiziq o‘z maksimumiga nisbatan).</p>` : ''}
@@ -213,7 +216,7 @@ async function expenses(ctx, holder) {
   });
 }
 
-function expenseForm(item, vehicles, onSaved) {
+export function expenseForm(item, vehicles, onSaved) {
   const e = item || { vehicle_id: '', expense_date: todayISO(), category: 'fuel', amount: '', note: '' };
   formModal({
     title: item ? 'Xarajatni tahrirlash' : 'Yangi xarajat',

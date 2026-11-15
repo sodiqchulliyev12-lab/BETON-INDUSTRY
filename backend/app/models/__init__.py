@@ -2,7 +2,7 @@
 from app.models.base import Base
 from app.models.callback import CallbackRequest
 from app.models.customer import Customer
-from app.models.fleet import Driver, OrderTrip, Vehicle, VehicleExpense
+from app.models.fleet import Driver, OrderTrip, TaxiRide, Vehicle, VehicleBreakdown, VehicleExpense, VehicleWorkLog
 from app.models.improvement import ImprovementAction
 from app.models.lab import LabSample, LabTest
 from app.models.notification import NotificationLog
@@ -42,8 +42,11 @@ __all__ = [
     "TelegramMessage",
     "TelegramSettings",
     "User",
+    "TaxiRide",
     "Vehicle",
+    "VehicleBreakdown",
     "VehicleExpense",
+    "VehicleWorkLog",
     "Warehouse",
     "order_number_seq",
 ]

@@ -10,7 +10,7 @@ from app.models import Driver, OrderTrip, User, Vehicle
 from app.models.enums import VehicleOwnership, VehicleStatus
 from app.permissions import Perm
 from app.schemas.admin_fleet import DriverIn, DriverOut, VehicleIn, VehicleOut, VehicleStatusIn
-from app.services.fleet import ACTIVE_TRIP, sync_vehicle_status
+from app.services.fleet import ACTIVE_TRIP, inspection_status, sync_vehicle_status
 
 router = APIRouter(tags=["Admin: transport va haydovchilar"])
 
@@ -88,6 +88,7 @@ def _vehicle_out(db: Session, vehicles: list[Vehicle]) -> list[VehicleOut]:
             "default_driver_phone": v.default_driver.phone if v.default_driver else None,
             "trips_count": total.get(v.id, 0),
             "active_trips": active.get(v.id, 0),
+            "inspection_status": inspection_status(v.inspection_due),
         })
         for v in vehicles
     ]
@@ -105,6 +106,8 @@ def _apply_vehicle(db: Session, vehicle: Vehicle, payload: VehicleIn) -> None:
         driver = db.get(Driver, payload.default_driver_id)
         if driver is None or not driver.is_active:
             raise _error("default_driver_id", "Haydovchi topilmadi yoki nofaol.")
+    if payload.kind == "car" and payload.ownership == VehicleOwnership.PER_TRIP:
+        raise _error("ownership", "Yengil avtomobil o‘zimizniki yoki arenda bo‘ladi (taksi alohida yoziladi).")
     data = payload.model_dump()
     if payload.ownership == VehicleOwnership.OWN:
         data["rental_company"] = None

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import require
-from app.models import Customer, Order, OrderTrip, User, Vehicle, VehicleExpense
+from app.models import Customer, Order, OrderTrip, TaxiRide, User, Vehicle, VehicleExpense
 from app.models.enums import OrderStatus, TripStatus, VehicleStatus
 from app.models.fleet import EXPENSE_CATEGORIES
 from app.permissions import Perm
@@ -24,7 +24,7 @@ from app.utils.timezone import local_tz, today_local
 router = APIRouter(tags=["Admin: transport bo‘limi"])
 T = TripStatus
 ZERO = Decimal("0")
-EXPENSE_LABELS = {"fuel": "Yoqilg‘i", "repair": "Ta’mir", "tires": "Shina", "insurance": "Sug‘urta", "other": "Boshqa"}
+EXPENSE_LABELS = {"fuel": "Yoqilg‘i", "parts": "Zapchast", "repair": "Ta’mir", "tires": "Shina", "insurance": "Sug‘urta", "other": "Boshqa"}
 
 
 def _f(value) -> float:
@@ -86,6 +86,7 @@ def fleet_summary(days: int = Query(14, ge=3, le=60), db: Session = Depends(get_
     for d in daily:
         d["fuel_cost"] = _f(fuel.get(date.fromisoformat(d["date"])))
 
+    taxi = list(db.scalars(select(TaxiRide).where(TaxiRide.ride_date >= today.replace(day=1), TaxiRide.ride_date <= today)))
     return {
         "hourly": {g: [[h, n] for h, n in sorted(v.items())] for g, v in hourly.items()},
         "total": len(vehicles),
@@ -99,12 +100,13 @@ def fleet_summary(days: int = Query(14, ge=3, le=60), db: Session = Depends(get_
         # Bandlik: band mashinalar / ta'mirda bo'lmagan faol mashinalar. Maqsad (reja) kiritilmagan — taxmin qilinmaydi.
         "busy_pct": round(100 * count(lambda v: v.status == VehicleStatus.BUSY)
                           / max(1, count(lambda v: v.status != VehicleStatus.REPAIR)), 1) if vehicles else None,
-        "by_kind": {k: count(lambda v, k=k: v.kind == k) for k in ("mixer", "pump", "other")},
+        "by_kind": {k: count(lambda v, k=k: v.kind == k) for k in ("mixer", "pump", "other", "car")},
         "by_ownership": {o: {k: count(lambda v, o=o, k=k: v.ownership.value == o and v.kind == k)
-                             for k in ("mixer", "pump", "other")} for o in ("own", "rented", "per_trip")},
+                             for k in ("mixer", "pump", "other", "car")} for o in ("own", "rented", "per_trip")},
         # Ta'mirda bo'lmagan (ishga yaroqli) transport soni — "faol %" uchun
         "ready_by_ownership": {o: {k: count(lambda v, o=o, k=k: v.ownership.value == o and v.kind == k and v.status != VehicleStatus.REPAIR)
-                                   for k in ("mixer", "pump", "other")} for o in ("own", "rented", "per_trip")},
+                                   for k in ("mixer", "pump", "other", "car")} for o in ("own", "rented", "per_trip")},
+        "taxi_month": {"rides": len(taxi), "amount": sum(_f(t.amount) for t in taxi)},
         "daily": daily,
     }
 
@@ -118,7 +120,7 @@ def fleet_monitor(date_: date = Query(alias="date", default_factory=today_local)
                   _: User = Depends(require(Perm.FLEET_READ))):
     q = (select(OrderTrip).join(Vehicle, Vehicle.id == OrderTrip.vehicle_id).join(Order, Order.id == OrderTrip.order_id)
          .where(Order.delivery_date == date_, OrderTrip.status != T.CANCELLED))
-    if kind in ("mixer", "pump", "other"):
+    if kind in ("mixer", "pump", "other", "car"):
         q = q.where(Vehicle.kind == kind)
     if ownership in ("own", "rented", "per_trip"):
         q = q.where(Vehicle.ownership == ownership)
@@ -188,7 +190,7 @@ def fleet_planning(date_: date = Query(alias="date", default_factory=today_local
 class ExpenseIn(InputModel):
     vehicle_id: int
     expense_date: date
-    category: Literal["fuel", "repair", "tires", "insurance", "other"]
+    category: Literal["fuel", "parts", "repair", "tires", "insurance", "other"]
     amount: Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=2)]
     note: Annotated[str | None, Field(default=None, max_length=500)]
 

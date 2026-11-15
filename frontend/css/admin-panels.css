@@ -223,3 +223,30 @@
 .own-list b { font-family: var(--f-display); font-size: 1.35rem; }
 .own-list .tag { font-size: var(--fs-xs); color: var(--c-success); font-weight: 700; }
 @media (max-width: 720px) { .fleet-card__row { grid-template-columns: 1fr; } }
+
+.fleet-tile { display: grid; grid-template-columns: minmax(120px, 42%) 1fr; gap: var(--sp-4); align-items: center; padding: var(--sp-3); border: 1px solid var(--c-gray-200); border-radius: var(--radius); text-decoration: none; color: inherit; transition: box-shadow var(--t-fast), border-color var(--t-fast); }
+.fleet-tile:hover { border-color: var(--c-yellow); box-shadow: var(--shadow); }
+.fleet-tile__pic { display: block; background: #fff; border-radius: var(--radius-sm); overflow: hidden; }
+.fleet-tile__pic img { display: block; width: 100%; height: auto; }
+.fleet-tile__body > strong { display: block; margin-bottom: 6px; font-size: var(--fs-sm); }
+.fleet-tile__body > strong small { color: var(--c-text-muted); font-weight: 600; }
+.fleet-tile .own-list { display: grid; gap: 4px; }
+.fleet-tile .own-list > span { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-xs); border-bottom: 1px solid var(--c-gray-200); padding-bottom: 3px; }
+.fleet-tile .own-list b { font-size: 1.1rem; }
+.fleet-tile .tag { font-style: normal; color: var(--c-success); font-weight: 700; margin-left: 4px; }
+@media (max-width: 520px) { .fleet-tile { grid-template-columns: 1fr; } }
+
+/* --- Transport turi sahifasi --- */
+.kind-head { display: grid; grid-template-columns: minmax(220px, 340px) 1fr; gap: var(--sp-5); align-items: center; margin-bottom: var(--sp-5); padding: var(--sp-4); background: #fff; border: 1px solid var(--c-gray-200); border-radius: var(--radius); }
+.kind-head img { display: block; width: 100%; height: auto; }
+.kind-head h2 { margin: 0 0 4px; font-family: var(--f-display); font-size: 1.7rem; }
+.kind-head__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--sp-3); }
+@media (max-width: 760px) { .kind-head { grid-template-columns: 1fr; } }
+.stat__sub { display: block; margin-top: 2px; font-size: var(--fs-xs); color: var(--c-text-muted); }
+.stat__sub b { color: var(--c-text); }
+.status--insp-ok { background: var(--c-success-bg); color: var(--c-success); }
+.status--insp-soon { background: var(--c-warning-bg); color: #8a5a00; }
+.status--insp-overdue { background: var(--c-danger-bg); color: var(--c-danger); }
+.status--insp-unknown { background: var(--c-gray-200); color: var(--c-text-muted); }
+.dm { white-space: nowrap; }
+.dm small { color: var(--c-text-muted); }

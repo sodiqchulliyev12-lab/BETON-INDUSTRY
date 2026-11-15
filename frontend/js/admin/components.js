@@ -69,7 +69,26 @@ export const TRIP_STATUS = {
 
 export const VEHICLE_STATUS = { free: 'Bo‘sh', busy: 'Band', repair: 'Ta’mirda' };
 export const OWNERSHIP = { own: 'O‘zimizniki', rented: 'Arenda', per_trip: 'Reys bay' };
-export const EMPLOYMENT = { staff: 'Shtatdagi', contractor: 'Shartnoma asosida' };
+/* Transport turlari (bo'limlar) */
+export const VEHICLE_KIND = { mixer: 'Mikser', pump: 'Beton nasosi', other: 'Yuk avtomobili', car: 'Yengil avtomobil' };
+export const VEHICLE_KIND_TITLE = { mixer: 'Mikserlar', pump: 'Beton nasoslari', other: 'Yuk avtomobillari', car: 'Yengil avtomobillar' };
+export const KIND_ROUTE = { mixer: 'mixers', pump: 'pumps', other: 'others', car: 'cars' };
+export const KIND_PHOTO = {
+  mixer: '../assets/img/mixer-photo.webp?v=1', pump: '../assets/img/pump-truck.webp?v=2',
+  other: '../assets/img/yuk-avtomobil.webp?v=1', car: '../assets/img/car-photo.webp?v=1',
+};
+export const EXPENSE_LABEL = {
+  fuel: 'Yoqilg‘i', parts: 'Zapchast', repair: 'Ta’mir', tires: 'Shina', insurance: 'Sug‘urta', other: 'Ko‘zda tutilmagan / boshqa',
+};
+export const INSPECTION = { ok: 'Muddati bor', soon: 'Yaqinlashdi', overdue: 'Muddati o‘tgan', unknown: 'Kiritilmagan' };
+
+/** Egalik nomi turga qarab: nasosda «Soatbay», boshqalarda «Reys bay» */
+export function ownLabel(kind, own) {
+  if (own === 'per_trip') return kind === 'pump' ? 'Soatbay' : 'Reys bay';
+  return OWNERSHIP[own] || own;
+}
+
+export const EMPLOYMENT ={ staff: 'Shtatdagi', contractor: 'Shartnoma asosida' };
 export const PLAN_STATUS = { planned: 'Rejalashtirilgan', in_progress: 'Jarayonda', completed: 'Bajarildi', cancelled: 'Bekor qilindi' };
 export const QC_STATUS = { pending: 'Kutilmoqda', passed: 'O‘tdi', failed: 'O‘tmadi' };
 

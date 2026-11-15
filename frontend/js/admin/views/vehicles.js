@@ -8,11 +8,11 @@ import { setQuery } from '../app.js';
 import { attachPhoneMask } from '../../validators.js';
 import { todayISO } from '../../validators.js';
 import {
-  OWNERSHIP, PERM, TRIP_STATUS, VEHICLE_STATUS, confirmAction, emptyRow, errorHtml, escapeHtml, field, fmtDate,
+  OWNERSHIP, ownLabel, PERM, TRIP_STATUS, VEHICLE_STATUS, confirmAction, emptyRow, errorHtml, escapeHtml, field, fmtDate,
   fmtDateTime, formModal, icon, loadingHtml, localErrors, money, numberOrNull, phoneLink, statusBadge, toast, volume,
 } from '../components.js';
 
-const KIND = { mixer: 'Mikser', pump: 'Beton nasosi', other: 'Yuk avtomobili' };
+const KIND = { mixer: 'Mikser', pump: 'Beton nasosi', other: 'Yuk avtomobili', car: 'Yengil avtomobil' };
 const KIND_TITLE = { mixer: 'Mikserlar', pump: 'Beton nasoslari', other: 'Yuk avtomobillari' };
 
 export async function render(ctx) {
@@ -97,8 +97,8 @@ export async function render(ctx) {
   });
 }
 
-function vehicleForm(vehicle, drivers, onSaved, defaultKind = null) {
-  const v = vehicle || { plate_number: '', vehicle_type: defaultKind === 'pump' ? 'Beton nasosi' : (defaultKind === 'other' ? 'Yuk avtomobili' : 'Beton mikser'), kind: defaultKind || 'mixer', ownership: 'own', capacity_m3: null, default_driver_id: null, contact_phone: '', rental_company: '', status: 'free', is_active: true, notes: '' };
+export function vehicleForm(vehicle, drivers, onSaved, defaultKind = null) {
+  const v = vehicle || { plate_number: '', vehicle_type: { pump: 'Beton nasosi', other: 'Yuk avtomobili', car: 'Yengil avtomobil' }[defaultKind] || 'Beton mikser', kind: defaultKind || 'mixer', ownership: 'own', capacity_m3: null, default_driver_id: null, contact_phone: '', rental_company: '', status: 'free', is_active: true, notes: '', inspection_date: '', inspection_due: '' };
   const driverOptions = [{ value: '', label: '— tanlanmagan —' }].concat(
     drivers.filter((d) => d.is_active || d.id === v.default_driver_id).map((d) => ({ value: d.id, label: d.full_name })),
   );
@@ -114,13 +114,17 @@ function vehicleForm(vehicle, drivers, onSaved, defaultKind = null) {
         <div></div>
       </div>
       <div class="form-row">
-        ${field({ name: 'ownership', label: 'Egasi', options: Object.entries(OWNERSHIP).map(([value, label]) => ({ value, label })), value: v.ownership })}
+        ${field({ name: 'ownership', label: 'Egasi', options: Object.keys(OWNERSHIP).map((value) => ({ value, label: ownLabel(v.kind, value) })), value: v.ownership })}
         ${field({ name: 'capacity_m3', label: 'Sig‘imi (m³)', value: v.capacity_m3 ?? '', attrs: 'inputmode="decimal" autocomplete="off"', hint: 'Noma’lum bo‘lsa bo‘sh qoldiring — tizim taxmin qilmaydi.' })}
       </div>
       <div data-rented>${field({ name: 'rental_company', label: 'Egasi / tashuvchi', value: v.rental_company, attrs: 'maxlength="200"', hint: 'Arenda beruvchi yoki reys bay ishlaydigan tashuvchi (firma yoki shaxs).' })}</div>
       <div class="form-row">
         ${field({ name: 'default_driver_id', label: 'Doimiy haydovchi', options: driverOptions, value: v.default_driver_id ?? '' })}
         ${field({ name: 'contact_phone', label: 'Aloqa telefoni', type: 'tel', value: v.contact_phone, attrs: 'inputmode="tel"', hint: 'Masalan, arenda beruvchi, tashuvchi yoki haydovchi telefoni.' })}
+      </div>
+      <div class="form-row">
+        ${field({ name: 'inspection_date', label: 'Oxirgi texnik ko‘rik sanasi', type: 'date', value: v.inspection_date || '', attrs: `max="${todayISO()}"` })}
+        ${field({ name: 'inspection_due', label: 'Keyingi ko‘rik muddati', type: 'date', value: v.inspection_due || '', hint: 'Muddat yaqinlashganda ro‘yxatda belgilanadi.' })}
       </div>
       ${field({ name: 'notes', label: 'Izoh', type: 'textarea', rows: 2, value: v.notes, attrs: 'maxlength="1000"' })}
       ${field({ name: 'is_active', label: 'Faol (qatnovga biriktirish mumkin)', type: 'checkbox', value: v.is_active })}`,
@@ -129,7 +133,18 @@ function vehicleForm(vehicle, drivers, onSaved, defaultKind = null) {
       const rented = form.querySelector('[data-rented]');
       const sync = () => { rented.hidden = form.elements.ownership.value === 'own'; };
       form.elements.ownership.addEventListener('change', sync);
-      sync();
+      const syncKind = () => {
+        const kind = form.elements.kind.value;
+        const own = form.elements.ownership;
+        [...own.options].forEach((o) => {
+          o.textContent = ownLabel(kind, o.value);
+          o.hidden = kind === 'car' && o.value === 'per_trip'; // yengil avtomobil: o'zimizniki yoki arenda (taksi alohida yoziladi)
+        });
+        if (kind === 'car' && own.value === 'per_trip') own.value = 'own';
+        sync();
+      };
+      form.elements.kind.addEventListener('change', syncKind);
+      syncKind();
     },
     onSubmit: async (form) => {
       const f = form.elements;
@@ -138,6 +153,7 @@ function vehicleForm(vehicle, drivers, onSaved, defaultKind = null) {
         plate_number: /^[A-Z0-9]{4,12}$/.test(f.plate_number.value.replace(/[\s-]/g, '').toUpperCase()) ? null : 'Davlat raqamini to‘g‘ri kiriting.',
         vehicle_type: f.vehicle_type.value.trim().length >= 2 ? null : 'Turini kiriting.',
         capacity_m3: Number.isNaN(capacity) || (capacity !== null && capacity <= 0) ? 'Musbat son kiriting yoki bo‘sh qoldiring.' : null,
+        inspection_due: f.inspection_due.value && f.inspection_date.value && f.inspection_due.value <= f.inspection_date.value ? 'Keyingi muddat oxirgi ko‘rikdan keyin bo‘lishi kerak.' : null,
       });
       const body = {
         plate_number: f.plate_number.value,
@@ -151,6 +167,8 @@ function vehicleForm(vehicle, drivers, onSaved, defaultKind = null) {
         status: v.status,
         is_active: f.is_active.checked,
         notes: f.notes.value.trim() || null,
+        inspection_date: f.inspection_date.value || null,
+        inspection_due: f.inspection_due.value || null,
       };
       if (vehicle) await http(`/admin/vehicles/${vehicle.id}`, { method: 'PUT', body });
       else await http('/admin/vehicles', { method: 'POST', body });

@@ -1,10 +1,10 @@
 """Transport, haydovchilar va qatnovlar."""
 import re
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.enums import DriverEmployment, TripStatus, VehicleOwnership, VehicleStatus
 from app.schemas.common import InputModel, JsonDecimal, OrmModel, clean_text, validate_person_name
@@ -69,7 +69,7 @@ class DriverOut(OrmModel):
 class VehicleIn(InputModel):
     plate_number: Annotated[str, Field(max_length=20)]
     vehicle_type: Annotated[str, Field(min_length=2, max_length=50)]
-    kind: Literal["mixer", "pump", "other"] = "mixer"
+    kind: Literal["mixer", "pump", "other", "car"] = "mixer"
     ownership: VehicleOwnership
     capacity_m3: Annotated[Decimal | None, Field(default=None, gt=0, max_digits=6, decimal_places=2)]
     default_driver_id: int | None = None
@@ -78,6 +78,14 @@ class VehicleIn(InputModel):
     status: VehicleStatus = VehicleStatus.FREE
     is_active: bool = True
     notes: Annotated[str | None, Field(default=None, max_length=1000)]
+    inspection_date: date | None = None
+    inspection_due: date | None = None
+
+    @model_validator(mode="after")
+    def _inspection(self):
+        if self.inspection_date and self.inspection_due and self.inspection_due <= self.inspection_date:
+            raise ValueError("Keyingi texnik ko‘rik muddati oxirgi ko‘rik sanasidan keyin bo‘lishi kerak.")
+        return self
 
     @field_validator("plate_number")
     @classmethod
@@ -114,6 +122,9 @@ class VehicleOut(OrmModel):
     status: VehicleStatus
     is_active: bool
     notes: str | None
+    inspection_date: date | None = None
+    inspection_due: date | None = None
+    inspection_status: str = "unknown"  # ok | soon | overdue | unknown
     active_trips: int = 0
     trips_count: int = 0
     created_at: datetime

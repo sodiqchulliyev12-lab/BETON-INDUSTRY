@@ -7,7 +7,7 @@ Qoidalar:
 - ijara xarajati faqat ijaraga olingan transport uchun yoziladi;
 - mashina holati qatnovlarga qarab avtomatik yangilanadi (ta'mirdagisi bundan mustasno).
 """
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -17,6 +17,7 @@ from app.models import Driver, Order, OrderTrip, ProductionRecord, Vehicle
 from app.models.enums import OrderStatus, QcStatus, TripStatus, VehicleOwnership, VehicleStatus
 from app.schemas.admin_fleet import OrderVolumes, TripIn, TripOut, TripUpdate
 from app.services.orders import OrderError
+from app.utils.timezone import today_local
 
 T = TripStatus
 ZERO = Decimal("0")
@@ -31,6 +32,19 @@ TRIP_FLOW: dict[TripStatus, tuple[TripStatus, ...]] = {
 }
 ACTIVE_TRIP = (T.LOADING, T.LOADED, T.EN_ROUTE)
 LOADED_OR_LATER = (T.LOADED, T.EN_ROUTE, T.DELIVERED)
+
+
+INSPECTION_SOON_DAYS = 30
+
+
+def inspection_status(due: date | None) -> str:
+    """Texnik ko'rik holati: muddat kiritilmagan — unknown (taxmin qilinmaydi)."""
+    if due is None:
+        return "unknown"
+    left = (due - today_local()).days
+    if left < 0:
+        return "overdue"
+    return "soon" if left <= INSPECTION_SOON_DAYS else "ok"
 
 
 class NotFound(Exception):

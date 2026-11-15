@@ -48,13 +48,13 @@ class Vehicle(TimestampMixin, Base):
     __tablename__ = "vehicles"
     __table_args__ = (
         CheckConstraint("capacity_m3 IS NULL OR capacity_m3 > 0", name="capacity_positive"),
-        CheckConstraint("kind IN ('mixer', 'pump', 'other')", name="kind_valid"),
+        CheckConstraint("kind IN ('mixer', 'pump', 'other', 'car')", name="kind_valid"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     plate_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     vehicle_type: Mapped[str] = mapped_column(String(50), nullable=False)  # erkin matn: "Beton mikser", "Avtonasos"...
-    # Bo'lim: mixer — mikserlar, pump — beton nasoslari, other — boshqa transport
+    # Bo'lim: mixer — mikserlar, pump — beton nasoslari, other — yuk avtomobillari, car — yengil avtomobillar
     kind: Mapped[str] = mapped_column(String(10), server_default="mixer", nullable=False)
     ownership: Mapped[VehicleOwnership] = mapped_column(
         pg_enum(VehicleOwnership, "vehicle_ownership"), nullable=False
@@ -68,6 +68,9 @@ class Vehicle(TimestampMixin, Base):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=true(), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
+    # Texnik ko'rik: oxirgi o'tgan sana va keyingi muddat (kiritilmasa — noma'lum, taxmin qilinmaydi)
+    inspection_date: Mapped[date | None] = mapped_column(Date)
+    inspection_due: Mapped[date | None] = mapped_column(Date)
 
     default_driver: Mapped[Driver | None] = relationship()
 
@@ -106,7 +109,7 @@ class OrderTrip(TimestampMixin, Base):
     driver: Mapped[Driver | None] = relationship()
 
 
-EXPENSE_CATEGORIES = ("fuel", "repair", "tires", "insurance", "other")
+EXPENSE_CATEGORIES = ("fuel", "parts", "repair", "tires", "insurance", "other")
 
 
 class VehicleExpense(CreatedAtMixin, Base):
@@ -124,3 +127,52 @@ class VehicleExpense(CreatedAtMixin, Base):
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
     vehicle: Mapped[Vehicle] = relationship()
+
+
+class VehicleBreakdown(CreatedAtMixin, Base):
+    """Transport buzilishi (necha marta buzilgani hisoblanadi). Xarajati alohida — VehicleExpense (ta'mir / zapchast)."""
+
+    __tablename__ = "vehicle_breakdowns"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id", ondelete="CASCADE"), index=True, nullable=False)
+    occurred_on: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    description: Mapped[str] = mapped_column(String(300), nullable=False)
+    resolved_on: Mapped[date | None] = mapped_column(Date)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    vehicle: Mapped[Vehicle] = relationship()
+
+
+class VehicleWorkLog(CreatedAtMixin, Base):
+    """Ish soati (asosan beton nasos): kim hisobidan ishlagan — kompaniya yoki mijoz."""
+
+    __tablename__ = "vehicle_work_logs"
+    __table_args__ = (
+        CheckConstraint("hours > 0 AND hours <= 24", name="hours_range"),
+        CheckConstraint("billed_to IN ('company', 'client')", name="billed_to_valid"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id", ondelete="CASCADE"), index=True, nullable=False)
+    work_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    hours: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    billed_to: Mapped[str] = mapped_column(String(10), nullable=False)
+    order_id: Mapped[int | None] = mapped_column(ForeignKey("orders.id", ondelete="SET NULL"))
+    note: Mapped[str | None] = mapped_column(Text)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    vehicle: Mapped[Vehicle] = relationship()
+
+
+class TaxiRide(CreatedAtMixin, Base):
+    """Yengil avtomobil o'rniga ishlatilgan taksi."""
+
+    __tablename__ = "taxi_rides"
+    __table_args__ = (CheckConstraint("amount > 0", name="amount_positive"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ride_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    purpose: Mapped[str | None] = mapped_column(String(300))
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
