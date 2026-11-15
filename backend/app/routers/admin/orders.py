@@ -33,13 +33,36 @@ def list_orders(
     date_to: date | None = None,
     customer_id: int | None = None,
     open_only: bool = False,
+    price: Annotated[str | None, Query(pattern="^(missing|set)$")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
     return order_admin.list_orders(
         db, status=status, q=q, date_from=date_from, date_to=date_to,
-        customer_id=customer_id, open_only=open_only, page=page, page_size=page_size,
+        customer_id=customer_id, open_only=open_only, price=price, page=page, page_size=page_size,
     )
+
+
+@router.get("/counts")
+def order_counts(
+    db: Session = Depends(get_db), _: User = Depends(require(Perm.ORDERS_READ)),
+    q: Annotated[str | None, Query(max_length=100)] = None, date_from: date | None = None, date_to: date | None = None,
+):
+    """Holatlar bo'yicha buyurtmalar soni (qidiruv va davr hisobga olinadi) va narxi kiritilmaganlar soni."""
+    from sqlalchemy import func, select
+
+    from app.models import Customer, Order
+
+    base = select(Order.status, func.count(), func.count(Order.concrete_total)).join(Customer, Customer.id == Order.customer_id)
+    base = order_admin._filtered(base, None, q, date_from, date_to).group_by(Order.status)
+    counts, total, priced, unpriced = {}, 0, 0, 0
+    for st, n, with_price in db.execute(base):
+        counts[st.value] = n
+        total += n
+        priced += with_price
+        if st != OrderStatus.CANCELLED:
+            unpriced += n - with_price
+    return {"statuses": counts, "total": total, "priced": priced, "unpriced": unpriced}
 
 
 @router.post("", response_model=OrderDetail, status_code=201)

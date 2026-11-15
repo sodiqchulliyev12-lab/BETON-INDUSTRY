@@ -37,13 +37,19 @@ def create_order(
     product = db.scalar(
         select(ConcreteProduct).where(ConcreteProduct.id == data.product_id).with_for_update(read=True)
     )
+    from types import SimpleNamespace
     if product is None or not product.is_active:
         raise OrderError("Tanlangan beton markasi topilmadi.", field="product_id")
     if not product.is_available:
         raise OrderError("Bu beton markasi hozir sotuvda yo‘q.", field="product_id")
 
-    price = pricing.current_price(db, product.id)
-    estimate = pricing.calculate(data.volume_m3, price, data.delivery_required)
+    if source == OrderSource.ADMIN:
+        # admin kiritgan narx shu buyurtmaga xos (katalog narxi hammaga bir xil emas); kiritilmasa — ochiq
+        price = SimpleNamespace(price_per_m3=data.unit_price, currency="UZS") if data.unit_price is not None else None
+        estimate = pricing.calculate(data.volume_m3, price, data.delivery_required, getattr(data, "delivery_price", None))
+    else:
+        price = pricing.current_price(db, product.id)
+        estimate = pricing.calculate(data.volume_m3, price, data.delivery_required)
 
     customer = get_or_create_customer(db, data.phone, data.customer_name)
 

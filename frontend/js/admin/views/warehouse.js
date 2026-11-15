@@ -64,17 +64,12 @@ const monthStart = () => `${todayISO().slice(0, 8)}01`;
 const warehouseOptions = (list, all = true) => (all ? [{ value: '', label: 'Barcha omborlar' }] : []).concat(list.filter((w) => w.is_active).map((w) => ({ value: w.id, label: w.name })));
 const categoryOptions = (all = true) => (all ? [{ value: '', label: 'Barcha turlar' }] : []).concat(Object.entries(CATEGORY).map(([value, label]) => ({ value, label })));
 
-/** Yon menyudan olib tashlangan bo'limlar sahifa ichida yorliq bo'lib turadi */
-const TABS = [['materials', 'Xomashyo'], ['input', 'Kirim'], ['output', 'Chiqim'], ['transfers', 'Omborlar aro harakat'], ['inventory', 'Inventarizatsiya'],
-  ['suppliers', 'Ta’minotchilar'], ['history', 'Material tarixi'], ['wh-report', 'Ombor hisobotlari'], ['warehouses', 'Omborlar']];
 function tabStrip(route, categories = null) {
-  const current = route.startsWith('materials') ? 'materials' : route;
   const cat = route.startsWith('materials/') ? route.split('/')[1] : '';
+  if (!(route.startsWith('materials') || route === 'warehouse')) return '';
   const stock = (k) => Object.entries(categories?.[k]?.stock || {}).map(([u, v]) => `${nf(v)} ${unitOf(u)}`).join(' + ');
-  const cats = route.startsWith('materials') || route === 'warehouse'
-    ? `<nav class="wh-tabs wh-tabs--cats" aria-label="Xomashyo turlari"><a class="wh-tabs__tab${current === 'materials' && !cat ? ' is-active' : ''}" href="#/materials">Barchasi</a>${
-      Object.entries(CATEGORY).map(([k, l]) => `<a class="wh-tabs__tab${cat === k ? ' is-active' : ''}" href="#/materials/${k}">${escapeHtml(l)}${categories ? ` <b>${escapeHtml(stock(k) || '0')}</b>` : ''}</a>`).join('')}</nav>` : '';
-  return `<nav class="wh-tabs" aria-label="Ombor bo‘limlari">${TABS.map(([r, l]) => `<a class="wh-tabs__tab${r === current ? ' is-active' : ''}" href="#/${r}">${escapeHtml(l)}</a>`).join('')}</nav>${cats}`;
+  return `<nav class="wh-tabs wh-tabs--cats" aria-label="Xomashyo turlari"><a class="wh-tabs__tab${!cat ? ' is-active' : ''}" href="#/materials">Barchasi</a>${
+    Object.entries(CATEGORY).map(([k, l]) => `<a class="wh-tabs__tab${cat === k ? ' is-active' : ''}" href="#/materials/${k}">${escapeHtml(l)}${categories ? ` <b>${escapeHtml(stock(k) || '0')}</b>` : ''}</a>`).join('')}</nav>`;
 }
 
 export async function render(ctx) {

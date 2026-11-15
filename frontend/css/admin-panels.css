@@ -334,3 +334,37 @@
 .kind-report__stats b { color: var(--c-graphite); }
 @media (max-width: 640px) { .kind-report__pic { width: 90px; } }
 .kpi-detail__bar { margin-bottom: 8px; }
+
+/* Davr paneli: namunadagidek (← → yonma-yon, tezkor tanlovlarsiz) */
+.pbar__nav { display: inline-flex; }
+.pbar__nav .pbar__btn { min-width: 38px; border-radius: 0; margin: 0; }
+.pbar__nav .pbar__btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.pbar__nav .pbar__btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; margin-left: -1px; }
+.pbar__clear { background: none; border: 0; padding: 0 4px; font: inherit; font-size: var(--fs-sm); color: #2a64c5; text-decoration: underline; cursor: pointer; }
+.pbar__clear:hover { color: #174a9a; }
+
+/* 1C kabi: bo'lim sahifalari yon menyuning o'ng tomonida */
+.admin-body { display: flex; align-items: flex-start; flex: 1; min-width: 0; }
+.admin-body > .admin-content { flex: 1; min-width: 0; }
+.admin-subnav { flex: none; width: 220px; position: sticky; top: var(--topbar-h); align-self: flex-start; max-height: calc(100vh - var(--topbar-h)); overflow-y: auto; padding: var(--sp-4) var(--sp-3); background: #fff; border-right: 1px solid var(--c-gray-200); }
+.admin-subnav[hidden] { display: none; }
+.admin-subnav__title { padding: 0 10px var(--sp-2); font-size: var(--fs-xs); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--c-text-muted); }
+.admin-subnav__link { display: block; padding: 8px 10px; border-radius: var(--radius-sm); font-size: var(--fs-sm); font-weight: 600; color: var(--c-graphite); text-decoration: none; }
+.admin-subnav__link:hover { background: var(--c-gray-100, #f3f3f0); }
+.admin-subnav__link.is-active { background: var(--c-yellow); }
+@media (max-width: 900px) {
+  .admin-body { flex-direction: column; }
+  .admin-subnav { position: static; width: auto; max-height: none; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border-right: 0; border-bottom: 1px solid var(--c-gray-200); padding: 8px 12px; align-self: stretch; }
+  .admin-subnav[hidden] { display: none; }
+  .admin-subnav__title { display: none; }
+}
+
+/* Buyurtmalar: holat raqamlari */
+.status-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: var(--sp-4); }
+.status-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font: inherit; font-size: var(--fs-sm); font-weight: 600; background: #fff; border: 1px solid var(--c-gray-300); border-radius: 999px; cursor: pointer; }
+.status-chip b { min-width: 22px; padding: 1px 7px; text-align: center; border-radius: 999px; background: var(--c-gray-200); font-size: var(--fs-xs); }
+.status-chip.is-zero { color: var(--c-text-muted); }
+.status-chip.is-active { background: var(--c-yellow); border-color: var(--c-yellow); }
+.status-chip.is-active b { background: #fff; }
+.status-chip--warn b { background: #ffe08a; }
+.price-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--sp-4); }

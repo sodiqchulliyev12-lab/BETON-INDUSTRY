@@ -130,6 +130,9 @@ class AdminOrderCreate(InputModel):
     delivery_date: date
     delivery_time: time | None = None
     comment: Annotated[str | None, Field(default=None, max_length=1000)]
+    # Narx har bir buyurtmada alohida: kiritilmasa buyurtma ochiq qoladi va «Narxlar» bo'limida kiritiladi
+    unit_price: Annotated[Decimal | None, Field(default=None, ge=0, max_digits=12, decimal_places=2)]
+    delivery_price: Annotated[Decimal | None, Field(default=None, ge=0, max_digits=12, decimal_places=2)]
     manager_id: Annotated[int | None, Field(default=None, gt=0)]
 
     @field_validator("customer_name")

@@ -180,3 +180,24 @@ def test_sales_overview_and_returns(client, setup, login, db):
     assert client.get(f"{API}/sales/overview?{q}", headers=admin).json()["totals"]["returned_pending_m3"] == 0
     # davr noto'g'ri
     assert client.get(f"{API}/sales/overview?date_from={day()}&date_to={day(-1)}", headers=admin).status_code == 422
+
+
+def test_admin_order_price_and_counts(client, login, make_product):
+    h = login("manager")
+    p = make_product(price=Decimal("700000"))
+    body = {"customer_name": "Ahmad Karimov", "phone": "90 123 45 67", "product_id": p.id, "volume_m3": 10,
+            "delivery_required": False, "delivery_date": day()}
+    priced = client.post(f"{API}/orders", headers=h, json={**body, "unit_price": 650000}).json()
+    assert priced["concrete_total"] == 6500000 and priced["items"][0]["unit_price"] == 650000  # katalog narxi emas, kiritilgani
+    open_ = client.post(f"{API}/orders", headers=h, json=body).json()
+    assert open_["concrete_total"] is None and open_["items"][0]["unit_price"] is None
+    c = client.get(f"{API}/orders/counts", headers=h).json()
+    assert c["total"] == 2 and c["statuses"]["new"] == 2 and c["priced"] == 1 and c["unpriced"] == 1
+    miss = client.get(f"{API}/orders?price=missing", headers=h).json()
+    assert [o["id"] for o in miss["items"]] == [open_["id"]]
+    assert client.get(f"{API}/orders?price=set", headers=h).json()["total"] == 1
+    # narxni keyin kiritish (Narxlar bo'limi)
+    item = open_["items"][0]["id"]
+    done = client.patch(f"{API}/orders/{open_['id']}/items/{item}", headers=h, json={"unit_price": 600000}).json()
+    assert done["concrete_total"] == 6000000
+    assert client.get(f"{API}/orders?price=missing", headers=h).json()["total"] == 0

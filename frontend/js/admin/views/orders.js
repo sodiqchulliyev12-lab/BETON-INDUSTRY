@@ -28,6 +28,7 @@ async function renderList({ root, query, isCurrent }) {
   const filters = {
     q: query.get('q') || '',
     status: query.get('status') || '',
+    price: query.get('price') || '',
     date_from: query.get('date_from') || '',
     date_to: query.get('date_to') || '',
     page: Number(query.get('page')) || 1,
@@ -36,24 +37,29 @@ async function renderList({ root, query, isCurrent }) {
   root.innerHTML = `
     <div class="page-actions">
       <input class="input search" type="search" name="q" placeholder="Raqam, ism yoki telefon" value="${escapeHtml(filters.q)}" aria-label="Qidirish">
-      <select class="select" name="status" aria-label="Holat">
-        <option value="">Barcha holatlar</option>
-        ${Object.entries(ORDER_STATUS).map(([k, v]) => `<option value="${k}" ${filters.status === k ? 'selected' : ''}>${v}</option>`).join('')}
-      </select>
       ${rangeBar({ from: filters.date_from, to: filters.date_to, allowFuture: true, label: 'Yetkazish', fromParam: 'date_from', toParam: 'date_to' })}
-      ${filters.q || filters.status || filters.date_from || filters.date_to ? '<button type="button" class="btn btn--outline btn--sm" data-reset>Tozalash</button>' : ''}
+      ${filters.q || filters.status || filters.price || filters.date_from || filters.date_to ? '<button type="button" class="btn btn--outline btn--sm" data-reset>Tozalash</button>' : ''}
       ${session.can(PERM.ORDERS_MANAGE) ? `<button type="button" class="btn btn--primary" data-new-order>${icon('i-plus')} Yangi buyurtma</button>` : ''}
     </div>
+    <div class="status-chips" id="statusChips" role="group" aria-label="Holat bo‘yicha"></div>
     <section class="box" id="ordersBox">${loadingHtml()}</section>`;
+  http(`/admin/orders/counts${qs({ q: filters.q, date_from: filters.date_from, date_to: filters.date_to })}`).then((c) => {
+    if (!isCurrent()) return;
+    const chip = (key, label, n, active, extra = '') => `<button type="button" class="status-chip${active ? ' is-active' : ''}${n ? '' : ' is-zero'}${extra}" data-chip="${key}">${escapeHtml(label)} <b>${n}</b></button>`;
+    root.querySelector('#statusChips').innerHTML = chip('', 'Barchasi', c.total, !filters.status && !filters.price)
+      + Object.entries(ORDER_STATUS).map(([k, v]) => chip(k, v, c.statuses[k] || 0, filters.status === k)).join('')
+      + chip('price:missing', 'Narx kiritilmagan', c.unpriced, filters.price === 'missing', ' status-chip--warn');
+    root.querySelectorAll('[data-chip]').forEach((b) => b.addEventListener('click', () => {
+      const v = b.dataset.chip;
+      setQuery({ status: v.startsWith('price:') ? '' : v, price: v.startsWith('price:') ? 'missing' : '', page: '' });
+    }));
+  }).catch(() => {});
 
   const bar = root.querySelector('.page-actions');
   bar.querySelector('[name=q]').addEventListener('input', debounce((e) => setQuery({ q: e.target.value.trim(), page: '' }), 400));
   bindPeriod(bar);
-  bar.querySelectorAll('select[name]').forEach((input) => {
-    input.addEventListener('change', () => setQuery({ [input.name]: input.value, page: '' }));
-  });
   bar.querySelector('[data-new-order]')?.addEventListener('click', () => newOrderForm(() => renderList({ root, query, isCurrent })));
-  bar.querySelector('[data-reset]')?.addEventListener('click', () => setQuery({ q: '', status: '', date_from: '', date_to: '', page: '' }));
+  bar.querySelector('[data-reset]')?.addEventListener('click', () => setQuery({ q: '', status: '', price: '', date_from: '', date_to: '', page: '' }));
 
   const box = root.querySelector('#ordersBox');
   let page;
@@ -66,7 +72,7 @@ async function renderList({ root, query, isCurrent }) {
   }
   if (!isCurrent()) return;
 
-  const anyFilter = filters.q || filters.status || filters.date_from || filters.date_to;
+  const anyFilter = filters.q || filters.status || filters.price || filters.date_from || filters.date_to;
   box.innerHTML = `
     <div class="table-wrap">
       <table class="table">
@@ -574,6 +580,8 @@ async function newOrderForm(onSaved) {
       ${field({ name: 'volume_m3', label: 'Hajm (m³)', required: true, attrs: 'inputmode="decimal" autocomplete="off"' })}</div>
       <div class="form-row">${field({ name: 'delivery_date', label: 'Sana', type: 'date', value: today, required: true })}
       ${field({ name: 'delivery_time', label: 'Vaqt', type: 'time' })}</div>
+      <div class="form-row">${field({ name: 'unit_price', label: '1 m³ narxi (so‘m)', attrs: 'inputmode="decimal" autocomplete="off"', hint: 'Narx har bir buyurtmada alohida. Bo‘sh qoldirsangiz, «Narxlar» bo‘limidagi «Narx kiritilmagan» ro‘yxatiga tushadi.' })}
+      ${field({ name: 'delivery_price', label: 'Yetkazish narxi (so‘m)', attrs: 'inputmode="decimal" autocomplete="off"', hint: 'Ixtiyoriy.' })}</div>
       ${field({ name: 'delivery_required', label: 'Yetkazib berish', options: [{ value: '1', label: 'Yetkazib beriladi' }, { value: '0', label: 'O‘zi olib ketadi' }] })}
       <div data-addr>${field({ name: 'delivery_address', label: 'Manzil', attrs: 'maxlength="500"' })}</div>
       ${users.length ? field({ name: 'manager_id', label: 'Sotuvchi (KPI uchun)', options: [{ value: '', label: 'Men (joriy foydalanuvchi)' }].concat(users.map((u) => ({ value: u.id, label: u.full_name }))) }) : ''}
@@ -587,11 +595,15 @@ async function newOrderForm(onSaved) {
       const f = form.elements;
       const vol = numberOrNull(f.volume_m3.value);
       const delivery = f.delivery_required.value === '1';
+      const unitPrice = numberOrNull(f.unit_price.value);
+      const delPrice = numberOrNull(f.delivery_price.value);
       localErrors(form, {
         customer_name: f.customer_name.value.trim().length >= 2 ? null : 'Mijoz ismini kiriting.',
         phone: f.phone.value.trim() ? null : 'Telefon raqamini kiriting.',
         product_id: f.product_id.value ? null : 'Markani tanlang.',
         volume_m3: vol === null || Number.isNaN(vol) || vol <= 0 ? 'Musbat hajm kiriting.' : null,
+        unit_price: Number.isNaN(unitPrice) || (unitPrice !== null && unitPrice < 0) ? 'Narxni to‘g‘ri kiriting.' : null,
+        delivery_price: Number.isNaN(delPrice) || (delPrice !== null && delPrice < 0) ? 'Narxni to‘g‘ri kiriting.' : null,
         delivery_date: f.delivery_date.value ? null : 'Sanani kiriting.',
         delivery_address: delivery && f.delivery_address.value.trim().length < 5 ? 'Manzilni kiriting.' : null,
       });
@@ -599,6 +611,7 @@ async function newOrderForm(onSaved) {
         customer_name: f.customer_name.value.trim(), phone: f.phone.value.trim(), product_id: Number(f.product_id.value), volume_m3: vol,
         delivery_required: delivery, delivery_address: delivery ? f.delivery_address.value.trim() : null,
         delivery_date: f.delivery_date.value, delivery_time: f.delivery_time.value || null,
+        unit_price: unitPrice, delivery_price: delivery ? delPrice : null,
         comment: f.comment.value.trim() || null, manager_id: f.manager_id?.value ? Number(f.manager_id.value) : null,
       } });
       toast(`Buyurtma ${created.order_number} yaratildi.`, 'success');

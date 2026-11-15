@@ -80,6 +80,7 @@ def list_orders(
     date_to: date | None = None,
     customer_id: int | None = None,
     open_only: bool = False,
+    price: str | None = None,
     page: int = 1,
     page_size: int = 20,
 ) -> Page[OrderListItem]:
@@ -89,6 +90,10 @@ def list_orders(
     if open_only:
         base = base.where(Order.status.notin_((S.DELIVERED, S.CANCELLED)))
     base = _filtered(base, status, q, date_from, date_to)
+    if price == "missing":
+        base = base.where(Order.concrete_total.is_(None), Order.status != S.CANCELLED)
+    elif price == "set":
+        base = base.where(Order.concrete_total.is_not(None))
 
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     orders = db.scalars(

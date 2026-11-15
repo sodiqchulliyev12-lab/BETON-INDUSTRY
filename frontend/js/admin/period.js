@@ -53,27 +53,28 @@ export function periodFromQuery(query, defaults = {}) {
   return from <= to ? { from, to } : { from: to, to: from };
 }
 
-/** Bitta kun: ‹ [sana] › */
-export function dayBar({ date, allowFuture = false, label = 'Sana', param = 'date' }) {
+const NAV_BTNS = (what) => `<span class="pbar__nav"><button type="button" class="btn btn--outline btn--sm pbar__btn" data-prev aria-label="Oldingi ${what}" title="Oldingi ${what}">←</button><button type="button" class="btn btn--outline btn--sm pbar__btn" data-next aria-label="Keyingi ${what}" title="Keyingi ${what}">→</button></span>`;
+
+/** Bitta kun: [sana] ←→ */
+export function dayBar({ date, allowFuture = false, label = '', param = 'date' }) {
   const t = todayISO();
   return `<div class="pbar" data-pbar="day" data-param="${param}" data-future="${allowFuture ? 1 : 0}">
-    <span class="pbar__label">${escapeHtml(label)}</span>
-    <button type="button" class="btn btn--outline btn--sm pbar__btn" data-prev aria-label="Oldingi kun" title="Oldingi kun">‹</button>
-    <input class="input pbar__date" type="date" value="${escapeHtml(date)}" ${allowFuture ? '' : `max="${t}"`} aria-label="${escapeHtml(label)}">
-    <button type="button" class="btn btn--outline btn--sm pbar__btn" data-next aria-label="Keyingi kun" title="Keyingi kun" ${!allowFuture && date >= t ? 'disabled' : ''}>›</button>
+    ${label ? `<span class="pbar__label">${escapeHtml(label)}</span>` : ''}
+    <input class="input pbar__date" type="date" value="${escapeHtml(date)}" ${allowFuture ? '' : `max="${t}"`} aria-label="Sana">
+    ${NAV_BTNS('kun')}
   </div>`;
 }
 
-/** Davr: ‹ [dan] – [gacha] ›. fromParam/toParam — URL nomlari; empty — bo'sh davr ruxsat */
-export function rangeBar({ from, to, allowFuture = false, label = 'Davr', fromParam = 'from', toParam = 'to' }) {
+/** Davr: [dan] – [gacha] Davrni tozalash  ←→ (boshqa tezkor tanlovlar yo'q) */
+export function rangeBar({ from, to, allowFuture = false, label = '', fromParam = 'from', toParam = 'to' }) {
   const t = todayISO();
   return `<div class="pbar" data-pbar="range" data-future="${allowFuture ? 1 : 0}" data-fp="${fromParam}" data-tp="${toParam}">
-    <span class="pbar__label">${escapeHtml(label)}</span>
-    <button type="button" class="btn btn--outline btn--sm pbar__btn" data-prev aria-label="Oldingi davr" title="Oldingi davr">‹</button>
+    ${label ? `<span class="pbar__label">${escapeHtml(label)}</span>` : ''}
     <input class="input pbar__date" type="date" value="${escapeHtml(from || '')}" data-from ${allowFuture ? '' : `max="${t}"`} aria-label="Boshlanish sanasi">
     <span class="pbar__dash">–</span>
     <input class="input pbar__date" type="date" value="${escapeHtml(to || '')}" data-to ${allowFuture ? '' : `max="${t}"`} aria-label="Tugash sanasi">
-    <button type="button" class="btn btn--outline btn--sm pbar__btn" data-next aria-label="Keyingi davr" title="Keyingi davr" ${!allowFuture && to && to >= t ? 'disabled' : ''}>›</button>
+    <button type="button" class="pbar__clear" data-clear>Davrni tozalash</button>
+    ${NAV_BTNS('davr')}
   </div>`;
 }
 
@@ -93,7 +94,6 @@ export function bindPeriod(root, extra = { page: '' }) {
       input.addEventListener('change', () => go(input.value));
       bar.querySelector('[data-prev]').addEventListener('click', () => go(addDays(input.value || t, -1)));
       bar.querySelector('[data-next]').addEventListener('click', () => go(addDays(input.value || t, 1)));
-      bar.querySelector('[data-today]')?.addEventListener('click', () => go(''));
       const ym = () => {
         if (!yearEl || !monthEl) return;
         const base = input.value || t;
@@ -109,6 +109,7 @@ export function bindPeriod(root, extra = { page: '' }) {
 
     const fp = bar.dataset.fp || 'from';
     const tp = bar.dataset.tp || 'to';
+    bar.querySelector('[data-clear]')?.addEventListener('click', () => setQuery({ [fp]: '', [tp]: '', ...extra }));
     const fromEl = bar.querySelector('[data-from]');
     const toEl = bar.querySelector('[data-to]');
     const go = (from, to) => {

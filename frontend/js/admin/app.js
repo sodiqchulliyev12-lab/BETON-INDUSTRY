@@ -43,13 +43,13 @@ const NAV = [
     { route: 'warehouse', label: 'Ombor', icon: 'i-warehouse', perm: PERM.WAREHOUSE_READ, children: [
       { route: 'materials', label: 'Xomashyo', view: 'warehouse' },
       ...WH_CATEGORIES.map(([key, label]) => ({ route: `materials/${key}`, label, view: 'warehouse', level: 2, hidden: true })),
-      { route: 'input', label: 'Kirim', view: 'warehouse', hidden: true },
-      { route: 'output', label: 'Chiqim', view: 'warehouse', hidden: true },
-      { route: 'transfers', label: 'Omborlar aro harakat', view: 'warehouse', hidden: true },
-      { route: 'inventory', label: 'Inventarizatsiya', view: 'warehouse', hidden: true },
-      { route: 'suppliers', label: 'Ta’minotchilar', view: 'warehouse', hidden: true },
-      { route: 'history', label: 'Material tarixi', view: 'warehouse', hidden: true },
-      { route: 'wh-report', label: 'Ombor hisobotlari', view: 'warehouse', hidden: true },
+      { route: 'input', label: 'Kirim', view: 'warehouse' },
+      { route: 'output', label: 'Chiqim', view: 'warehouse' },
+      { route: 'transfers', label: 'Omborlar aro harakat', view: 'warehouse' },
+      { route: 'inventory', label: 'Inventarizatsiya', view: 'warehouse' },
+      { route: 'suppliers', label: 'Ta’minotchilar', view: 'warehouse' },
+      { route: 'history', label: 'Material tarixi', view: 'warehouse' },
+      { route: 'wh-report', label: 'Ombor hisobotlari', view: 'warehouse' },
       { route: 'warehouses', label: 'Omborlar', view: 'warehouse' },
     ] },
     { route: 'production-panel', label: 'Ishlab chiqarish', icon: 'i-factory', perm: PERM.PRODUCTION_READ, children: [
@@ -112,6 +112,7 @@ const el = {
   loginForm: document.getElementById('loginForm'),
   loginError: document.getElementById('loginError'),
   nav: document.getElementById('adminNav'),
+  subnav: document.getElementById('adminSubnav'),
   view: document.getElementById('view'),
   title: document.getElementById('pageTitle'),
   tools: document.getElementById('pageTools'),
@@ -178,7 +179,6 @@ function startApp() {
 function navLink(item) {
   return `<a class="admin-nav__link${item.level === 2 ? ' admin-nav__link--sub2' : ''}" href="#/${item.route}" data-route="${item.route}">
       ${item.icon ? icon(item.icon) : ''}<span>${escapeHtml(item.label)}</span>
-      ${item.children ? icon('i-chevron', 'admin-nav__chevron') : ''}
     </a>`;
 }
 
@@ -186,29 +186,36 @@ function renderNav() {
   el.nav.innerHTML = NAV.map((group) => {
     const items = group.items.filter((item) => session.can(item.perm));
     if (!items.length) return '';
-    return `<div class="admin-nav__group">${escapeHtml(group.group)}</div>${items.map((item) => {
-      if (!item.children) return navLink(item);
-      return `${navLink(item)}<div class="admin-nav__sub" data-parent="${item.route}" hidden>${
-        item.children.filter((c) => !c.hidden && session.can(c.perm || item.perm)).map((c) => navLink({ ...c, icon: '' })).join('')}</div>`;
-    }).join('')}`;
+    return `<div class="admin-nav__group">${escapeHtml(group.group)}</div>${items.map((item) => navLink({ ...item, children: null })).join('')}`;
   }).join('');
 }
 
-const collapsed = new Set(); // foydalanuvchi yopgan bo'limlar
+/** 1C kabi: tanlangan bo'limning sahifalari yon menyuda emas, uning o'ng tomonidagi panelda ochiladi */
+function renderSubnav(routeName) {
+  const parent = ROUTES[routeName]?.parent || routeName;
+  const section = ROUTES[parent];
+  const children = (section?.children || []).filter((c) => !c.hidden && c.level !== 2 && session.can(c.perm || section.perm));
+  el.subnav.hidden = children.length === 0;
+  document.body.classList.toggle('has-subnav', children.length > 0);
+  if (!children.length) {
+    el.subnav.innerHTML = '';
+    return;
+  }
+  el.subnav.innerHTML = `<div class="admin-subnav__title">${escapeHtml(section.label)}</div>${children.map((c) => {
+    const active = c.route === routeName || (c.route === 'materials' && routeName.startsWith('materials/'));
+    return `<a class="admin-subnav__link${active ? ' is-active' : ''}" href="#/${c.route}"${active ? ' aria-current="page"' : ''}>${escapeHtml(c.label)}</a>`;
+  }).join('')}`;
+}
 
 function markNav(routeName) {
   const parent = ROUTES[routeName]?.parent || routeName;
   el.nav.querySelectorAll('[data-route]').forEach((link) => {
-    const active = link.dataset.route === routeName;
+    const active = link.dataset.route === parent;
     link.classList.toggle('is-active', active);
-    link.classList.toggle('is-open', link.dataset.route === parent && !!ROUTES[parent]?.children);
     if (active) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });
-  collapsed.delete(parent);
-  el.nav.querySelectorAll('.admin-nav__sub').forEach((sub) => {
-    sub.hidden = sub.dataset.parent !== parent || collapsed.has(sub.dataset.parent);
-  });
+  renderSubnav(routeName);
 }
 
 function setSidebar(open) {
@@ -327,20 +334,6 @@ el.logout.addEventListener('click', async () => {
   await logout();
   el.view.innerHTML = '';
   showLogin();
-});
-
-/** Bo'lim nomini (masalan «Transport») bossangiz — ochiq bo'lsa butunlay yopiladi, yopiq bo'lsa ochiladi */
-el.nav.addEventListener('click', (event) => {
-  const link = event.target.closest('a[data-route]');
-  const item = link && ROUTES[link.dataset.route];
-  if (!item?.children || item.parent) return;
-  const sub = el.nav.querySelector(`.admin-nav__sub[data-parent="${item.route}"]`);
-  if (sub && !sub.hidden) {
-    event.preventDefault();
-    collapsed.add(item.route);
-    sub.hidden = true;
-    link.classList.remove('is-open');
-  }
 });
 
 el.toggle.addEventListener('click', () => setSidebar(!document.body.classList.contains('sidebar-open')));
