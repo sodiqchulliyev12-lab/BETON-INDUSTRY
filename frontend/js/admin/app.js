@@ -59,6 +59,10 @@ const NAV = [
       { route: 'production', label: 'Reja va yozuvlar' },
     ] },
     { route: 'lab', label: 'Laboratoriya', icon: 'i-flask', perm: PERM.LAB_READ },
+    { route: 'kpi', label: 'KPI va bonus', icon: 'i-calc', perm: PERM.KPI_MANAGE, children: [
+      { route: 'kpi-drivers', label: 'Haydovchilar (reys bonusi)', view: 'kpi' },
+      { route: 'kpi-sales', label: 'Sotuvchilar KPI', view: 'kpi' },
+    ] },
     { route: 'projects', label: 'Loyihalar va galereya', icon: 'i-image', perm: PERM.PROJECTS_MANAGE },
   ] },
   { group: 'Tizim', items: [
@@ -97,6 +101,7 @@ const VIEWS = {
   'production-panel': () => import('./views/production-panel.js'),
   production: () => import('./views/production.js'),
   lab: () => import('./views/lab.js'),
+  kpi: () => import('./views/kpi.js'),
   analysis: () => import('./views/analysis.js'),
   projects: () => import('./views/projects.js'),
   telegram: () => import('./views/telegram.js'),

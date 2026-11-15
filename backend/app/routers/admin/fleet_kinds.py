@@ -266,10 +266,10 @@ def usage(date_: date = Query(alias="date", default_factory=today_local), date_f
         q = q.where(OrderTrip.driver_id == driver_id)
     if vehicle_id:
         q = q.where(OrderTrip.vehicle_id == vehicle_id)
-    if kind:
-        q = q.where(Vehicle.kind == kind)
     names = dict(db.execute(select(Driver.id, Driver.full_name)).all())
     plates = {v.id: v for v in db.scalars(select(Vehicle))}
+    # Tur bo'yicha kartalar uchun: «kind» filtri ta'sir qilmaydi (haydovchi/mashina filtri ta'sir qiladi)
+    by_kind = {k: {"trips_day": 0, "trips_period": 0, "volume_period": 0.0, "hours_day": 0.0, "hours_period": 0.0, "vehicles": set()} for k in KINDS}
     tot = {"day": {"trips": 0, "volume_m3": 0.0, "trip_pay": 0.0}, "period": {"trips": 0, "volume_m3": 0.0, "trip_pay": 0.0}}
     by_vehicle: dict[int, dict] = {}
     by_driver: dict[int | None, dict] = {}
@@ -278,6 +278,15 @@ def usage(date_: date = Query(alias="date", default_factory=today_local), date_f
     for t, delivery, number in db.execute(q):
         in_period = m0 <= delivery <= m1
         on_day = delivery == date_
+        bk = by_kind[plates[t.vehicle_id].kind]
+        if on_day:
+            bk["trips_day"] += 1
+        if in_period:
+            bk["trips_period"] += 1
+            bk["volume_period"] += _f(t.volume_m3)
+            bk["vehicles"].add(t.vehicle_id)
+        if kind and plates[t.vehicle_id].kind != kind:
+            continue
         for label, hit in (("day", on_day), ("period", in_period)):
             if hit:
                 tot[label]["trips"] += 1
@@ -307,15 +316,19 @@ def usage(date_: date = Query(alias="date", default_factory=today_local), date_f
         return sorted(out, key=lambda r: -r["trips_period"])
 
     # Ish soati (nasos operatori) va yoqilg'i: tanlangan mashina/haydovchi bo'yicha
-    wl = select(VehicleWorkLog.work_date, VehicleWorkLog.hours).join(Vehicle, Vehicle.id == VehicleWorkLog.vehicle_id).where(VehicleWorkLog.work_date >= lo, VehicleWorkLog.work_date <= hi)
+    wl = select(VehicleWorkLog.work_date, VehicleWorkLog.hours, Vehicle.kind).join(Vehicle, Vehicle.id == VehicleWorkLog.vehicle_id).where(VehicleWorkLog.work_date >= lo, VehicleWorkLog.work_date <= hi)
     if driver_id:
         wl = wl.where(VehicleWorkLog.driver_id == driver_id)
     if vehicle_id:
         wl = wl.where(VehicleWorkLog.vehicle_id == vehicle_id)
-    if kind:
-        wl = wl.where(Vehicle.kind == kind)
     hours = {"day": 0.0, "period": 0.0}
-    for d_, hrs in db.execute(wl):
+    for d_, hrs, k_ in db.execute(wl):
+        if d_ == date_:
+            by_kind[k_]["hours_day"] += _f(hrs)
+        if m0 <= d_ <= m1:
+            by_kind[k_]["hours_period"] += _f(hrs)
+        if kind and k_ != kind:
+            continue
         if d_ == date_:
             hours["day"] += _f(hrs)
         if m0 <= d_ <= m1:
@@ -338,6 +351,7 @@ def usage(date_: date = Query(alias="date", default_factory=today_local), date_f
     return {
         "date": date_.isoformat(), "period_from": m0.isoformat(), "period_to": m1.isoformat(), "totals": tot, "hours": hours,
         "fuel": None if driver_id else fuel,
+        "by_kind": {k: {**{x: v for x, v in d.items() if x != "vehicles"}, "vehicles": len(d["vehicles"])} for k, d in by_kind.items()},
         "vehicles_count": {"day": len({t["plate_number"] for t in day_trips}), "period": len(by_vehicle)},
         "drivers_count": {"day": len({t["driver"] for t in day_trips if t["driver"]}), "period": len([k for k in by_driver if k is not None])},
         "by_vehicle": fin(by_vehicle), "by_driver": fin(by_driver), "trips_day": day_trips,

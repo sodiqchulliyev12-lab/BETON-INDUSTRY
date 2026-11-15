@@ -360,6 +360,17 @@ async function trips(ctx, holder) {
         ${sel2('fKind', [['', 'Barcha transport turlari'], ['mixer', 'Mikserlar'], ['pump', 'Beton nasoslari'], ['other', 'Yuk avtomobillari'], ['car', 'Yengil avtomobillar']], kind)}
         ${driver || vehicle || kind ? '<button class="btn btn--outline btn--sm" data-reset>Filtrni tozalash</button>' : ''}
       </div>
+      <div class="kind-pick">${TILE_KINDS.map((k) => {
+    const d = u.by_kind[k];
+    return `<div class="kind-pick__tile${kind === k ? ' is-active' : ''}" data-kind="${k}" role="button" tabindex="0" aria-pressed="${kind === k}" title="Shu tur bo‘yicha filtrlash">
+        <span class="kind-pick__pic"><img src="${KIND_PHOTO[k]}" alt="${escapeHtml(VEHICLE_KIND_TITLE[k])}" loading="lazy"></span>
+        <strong>${escapeHtml(VEHICLE_KIND_TITLE[k])}</strong>
+        <span class="kind-pick__row"><span>Kun · ${escapeHtml(fmtDate(u.date).slice(0, 5))}</span><b>${nf(d.trips_day)} reys</b></span>
+        <span class="kind-pick__row"><span>Davr</span><b>${nf(d.trips_period)} reys · ${nf(d.volume_period, 1)} m³</b></span>
+        <span class="kind-pick__row"><span>Mashina (davr)</span><b>${nf(d.vehicles)} ta</b></span>
+        ${k === 'pump' ? `<span class="kind-pick__row"><span>Ish soati (kun / davr)</span><b>${nf(d.hours_day, 1)} / ${nf(d.hours_period, 1)}</b></span>` : ''}
+        <a class="kind-pick__more" href="#/${KIND_ROUTE[k]}">Batafsil →</a></div>`;
+  }).join('')}</div>
       <p class="text-muted">${who.length ? `<strong>${escapeHtml(who.join(' · '))}</strong> bo‘yicha. ` : ''}Katta raqam — tanlangan davr, kichigi — «${escapeHtml(fmtDate(u.date))}» kuni. Bir mashinani bir necha haydovchi, bir haydovchi esa bir necha mashinani haydashi mumkin: har bir qatnov o‘z haydovchisi va mashinasi bilan hisoblanadi.</p>
       <div class="stats">
         ${stat({ label: 'Qatnovlar', value: nf(u.totals.period.trips), hint: `Kun: <b>${nf(u.totals.day.trips)}</b>`, tone: 'accent' })}
@@ -384,6 +395,11 @@ async function trips(ctx, holder) {
     const go = () => setQuery({ driver: holder.querySelector('#fDriver').value, vehicle: holder.querySelector('#fVehicle').value, kind: holder.querySelector('#fKind').value });
     holder.querySelectorAll('#fDriver, #fVehicle, #fKind').forEach((el) => el.addEventListener('change', go));
     holder.querySelector('[data-reset]')?.addEventListener('click', () => setQuery({ driver: '', vehicle: '', kind: '' }));
+    holder.querySelectorAll('.kind-pick__tile').forEach((t) => {
+      const pick = (e) => { if (!e.target.closest('a')) setQuery({ kind: kind === t.dataset.kind ? '' : t.dataset.kind }); };
+      t.addEventListener('click', pick);
+      t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(e); } });
+    });
     holder.querySelectorAll('tr[data-driver]').forEach((r) => r.addEventListener('click', () => setQuery({ driver: r.dataset.driver })));
     holder.querySelectorAll('tr[data-vehicle]').forEach((r) => r.addEventListener('click', () => setQuery({ vehicle: r.dataset.vehicle })));
     holder.querySelectorAll('tr[data-href]').forEach((r) => r.addEventListener('click', (e) => { if (!e.target.closest('a')) location.hash = r.dataset.href; }));

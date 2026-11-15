@@ -27,6 +27,7 @@ class Perm(StrEnum):
     LAB_READ = "lab.read"                  # laboratoriya namunalari va sinovlar
     LAB_MANAGE = "lab.manage"              # namuna va sinov natijalarini kiritish
     ANALYSIS_MANAGE = "analysis.manage"    # yaxshilash choralari rejasi
+    KPI_MANAGE = "kpi.manage"              # haydovchi / sotuvchi bonusi, mijoz to'lovlari (faqat admin)
 
 
 ROLE_PERMISSIONS: dict[UserRole, frozenset[Perm]] = {

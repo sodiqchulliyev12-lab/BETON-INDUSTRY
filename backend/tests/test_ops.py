@@ -302,3 +302,78 @@ def test_period_params(client, login):
     assert client.get(f"{API}/analysis/overview?date_from={day()}&date_to={day(-3)}", headers=h).status_code == 422
     d = client.get(f"{API}/dashboard?days=60&date_to={day(-10)}", headers=h).json()
     assert len(d["daily"]) == 60 and d["daily"][-1]["date"] == day(-10)
+
+
+# --- KPI: haydovchi bonusi va sotuvchi bonusi -------------------------------------
+
+def test_driver_bonus_and_sales_kpi(client, setup, login, db):
+    from sqlalchemy import select, update
+
+    from app.models import Order, OrderTrip, User
+    from app.models.enums import OrderStatus, TripStatus
+
+    h, oid, own = setup["h"], setup["order_id"], setup["own"]
+    admin = login("admin")
+    d2 = client.post(f"{API}/drivers", headers=h, json={"full_name": "Haydovchi Ikki", "phone": "90 222 33 44"}).json()
+    url = f"{API}/orders/{oid}/trips"
+    for body in ({"vehicle_id": own["id"], "volume_m3": 8}, {"vehicle_id": own["id"], "volume_m3": 8}, {"vehicle_id": own["id"], "driver_id": d2["id"], "volume_m3": 4}):
+        assert client.post(url, headers=h, json=body).status_code == 201
+    rng = f"date_from={day(-60)}&date_to={day(3)}"
+    # yetkazilmagan reyslar bonusga kirmaydi
+    r0 = client.get(f"{API}/kpi/drivers?{rng}", headers=admin).json()
+    assert r0["totals"]["bonus"] == 0 and r0["pending_trips"] == 3
+    db.execute(update(OrderTrip).values(status=TripStatus.DELIVERED))
+    db.commit()
+    r = client.get(f"{API}/kpi/drivers?{rng}", headers=admin).json()
+    by = {x["driver"]: x for x in r["rows"]}
+    assert by["Haydovchi Bir"]["trips"] == 2 and by["Haydovchi Bir"]["volume_m3"] == 16 and by["Haydovchi Bir"]["bonus"] == 20000
+    assert by["Haydovchi Ikki"]["trips"] == 1 and r["totals"] == {"trips": 3, "volume_m3": 20.0, "bonus": 30000.0} and r["clients"] == []
+    # haydovchi tanlansa — qaysi mijozga qancha beton olib borgani
+    rd = client.get(f"{API}/kpi/drivers?{rng}&driver_id={setup['driver']['id']}", headers=admin).json()
+    assert len(rd["clients"]) == 1 and rd["clients"][0]["volume_m3"] == 16 and rd["clients"][0]["trips"] == 2
+    # bonus miqdorini o'zgartirish
+    assert client.put(f"{API}/kpi/config", headers=admin, json={"driver_bonus_per_trip": 12000}).json()["driver_bonus_per_trip"] == 12000
+    assert client.get(f"{API}/kpi/drivers?{rng}", headers=admin).json()["totals"]["bonus"] == 36000
+    assert client.put(f"{API}/kpi/config", headers=admin, json={"driver_bonus_per_trip": 0}).status_code == 422
+    assert client.get(f"{API}/kpi/drivers?{rng}&kind=pump", headers=admin).json()["totals"]["trips"] == 0
+
+    # tur kartalari: qatnovlar sahifasi
+    u = client.get(f"{API}/fleet/usage?date={day(1)}&date_from={day(-5)}&date_to={day(3)}&kind=pump", headers=h).json()
+    assert u["by_kind"]["mixer"]["trips_period"] == 3 and u["by_kind"]["pump"]["trips_period"] == 0 and u["totals"]["period"]["trips"] == 0
+
+    # --- sotuvchi bonusi ---
+    order = db.get(Order, oid)
+    total = float(order.grand_total if order.grand_total is not None else order.concrete_total)
+    order.status = OrderStatus.DELIVERED
+    order.delivery_date = today_local() - timedelta(days=40)
+    db.commit()
+    seller = db.scalar(select(User).where(User.username == "admin"))
+    assert client.put(f"{API}/kpi/orders/{oid}/manager", headers=admin, json={"manager_id": seller.id}).status_code == 200
+    pay = f"{API}/kpi/orders/{oid}/payments"
+    for amount, off in ((5_000_000, -35), (4_000_000, -25), (3_000_000, -5)):
+        assert client.post(pay, headers=admin, json={"amount": amount, "paid_on": day(off)}).status_code == 201
+    assert client.post(pay, headers=admin, json={"amount": 1, "paid_on": day(1)}).status_code == 422  # kelajak
+    assert client.post(pay, headers=admin, json={"amount": total, "paid_on": day()}).status_code == 422  # summadan oshadi
+    q = f"date_from={day(-60)}&date_to={day()}"
+    s = client.get(f"{API}/kpi/sales?{q}", headers=admin).json()
+    g = s["rows"][0]
+    assert g["manager"] == seller.full_name and g["tiers"] == [5_000_000, 4_000_000, 0, 3_000_000] and g["paid"] == 12_000_000
+    assert g["bonus"] == 385000 and g["rates"]["custom"] is False and g["volume_m3"] == 20 and g["unpaid"] == round(g["amount"] - 12_000_000, 2)
+    assert s["totals"]["bonus"] == 385000 and s["managers"][0]["clients"] == 1
+    # mijoz bo'yicha kelishilgan foiz
+    cid = g["customer_id"]
+    assert client.put(f"{API}/kpi/customers/{cid}/rates", headers=admin, json={"pct_10": 6, "pct_20": 4, "pct_30": 2, "pct_over": 1}).status_code == 200
+    g2 = client.get(f"{API}/kpi/sales?{q}", headers=admin).json()["rows"][0]
+    assert g2["bonus"] == 490000 and g2["rates"]["custom"] is True
+    assert client.put(f"{API}/kpi/customers/{cid}/rates", headers=admin, json={"pct_10": 101, "pct_20": 4, "pct_30": 2, "pct_over": 1}).status_code == 422
+    assert client.delete(f"{API}/kpi/customers/{cid}/rates", headers=admin).status_code == 204
+    # to'lovni o'chirish
+    pid = g["orders"][0]["payments"][2]["id"]
+    assert client.delete(f"{API}/kpi/payments/{pid}", headers=admin).status_code == 204
+    assert client.get(f"{API}/kpi/sales?{q}", headers=admin).json()["totals"]["bonus"] == 370000
+    # boshqa sotuvchi / sotuvchisiz filtr
+    assert client.get(f"{API}/kpi/sales?{q}&unassigned=true", headers=admin).json()["rows"] == []
+    # faqat admin: kassa ma'lumoti
+    for path in (f"kpi/sales?{q}", f"kpi/drivers?{rng}", "kpi/config"):
+        assert client.get(f"{API}/{path}", headers=h).status_code == 403
+    assert client.post(pay, headers=h, json={"amount": 1000, "paid_on": day()}).status_code == 403

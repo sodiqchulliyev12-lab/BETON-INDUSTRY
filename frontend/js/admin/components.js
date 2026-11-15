@@ -56,6 +56,7 @@ export const PERM = {
   LAB_READ: 'lab.read',
   LAB_MANAGE: 'lab.manage',
   ANALYSIS_MANAGE: 'analysis.manage',
+  KPI_MANAGE: 'kpi.manage',
 };
 
 export const TRIP_STATUS = {
