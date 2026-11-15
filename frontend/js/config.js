@@ -37,7 +37,8 @@ export const CONFIG = Object.freeze({
   REQUEST_TIMEOUT_MS: 15000,
   SETTINGS_CACHE_TTL_MS: 5 * 60 * 1000,
   // Modul joylashuviga nisbatan — /admin/ ichidagi sahifalardan ham to'g'ri ishlaydi
-  ICON_SPRITE: new URL('../assets/icons/sprite.svg', import.meta.url).pathname,
+  // ?v — /assets/ brauzer keshida 1 soat turadi; ikonka qo'shilganda raqamni oshiring
+  ICON_SPRITE: `${new URL('../assets/icons/sprite.svg', import.meta.url).pathname}?v=2`,
   DEFAULT_CURRENCY: 'UZS',
 
   /** Beton hajmi chegaralari (m³). Yakuniy tekshiruv backendda ham bo'ladi. */

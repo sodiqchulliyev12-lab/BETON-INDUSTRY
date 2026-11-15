@@ -51,6 +51,11 @@ export const PERM = {
   PRODUCTION_READ: 'production.read',
   PRODUCTION_MANAGE: 'production.manage',
   PROJECTS_MANAGE: 'projects.manage',
+  WAREHOUSE_READ: 'warehouse.read',
+  WAREHOUSE_MANAGE: 'warehouse.manage',
+  LAB_READ: 'lab.read',
+  LAB_MANAGE: 'lab.manage',
+  ANALYSIS_MANAGE: 'analysis.manage',
 };
 
 export const TRIP_STATUS = {

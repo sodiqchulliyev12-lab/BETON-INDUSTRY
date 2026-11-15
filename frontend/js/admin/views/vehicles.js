@@ -1,5 +1,5 @@
 /**
- * Transport: o'zimizniki, arenda va reys bay mashinalar + kunlik qatnovlar jadvali (dispetcher uchun).
+ * Transport ro'yxati (hammasi / mikserlar / beton nasoslari / boshqa) va kunlik qatnovlar jadvali (dispetcher uchun).
  * Transport soni va sig'imi kodda belgilanmagan.
  */
 import { http, qs } from '../http.js';
@@ -12,19 +12,17 @@ import {
   fmtDateTime, formModal, icon, loadingHtml, localErrors, money, numberOrNull, phoneLink, statusBadge, toast, volume,
 } from '../components.js';
 
-export async function render(ctx) {
-  const { root, query, isCurrent } = ctx;
-  const canManage = session.can(PERM.FLEET_MANAGE);
-  const tab = query.get('tab') === 'trips' ? 'trips' : 'list';
+const KIND = { mixer: 'Mikser', pump: 'Beton nasosi', other: 'Boshqa' };
+const KIND_TITLE = { mixer: 'Mikserlar', pump: 'Beton nasoslari', other: 'Boshqa transport' };
 
-  root.innerHTML = `
-    <nav class="tabs">
-      <a href="#/vehicles" class="${tab === 'list' ? 'is-active' : ''}">Transport ro‘yxati</a>
-      <a href="#/vehicles?tab=trips" class="${tab === 'trips' ? 'is-active' : ''}">Kunlik qatnovlar</a>
-    </nav>
-    <div id="vehiclesView">${loadingHtml()}</div>`;
+export async function render(ctx) {
+  const { root, isCurrent, meta } = ctx;
+  const canManage = session.can(PERM.FLEET_MANAGE);
+  const kindFilter = meta.kind || null;
+
+  root.innerHTML = `<div id="vehiclesView">${loadingHtml()}</div>`;
   const holder = root.querySelector('#vehiclesView');
-  if (tab === 'trips') return renderTrips(ctx, holder);
+  if (meta.route === 'trips') return renderTrips(ctx, holder);
 
   let vehicles;
   let drivers = [];
@@ -37,7 +35,8 @@ export async function render(ctx) {
   }
   if (!isCurrent()) return;
 
-  const active = vehicles.filter((v) => v.is_active);
+  const shown = kindFilter ? vehicles.filter((v) => v.kind === kindFilter) : vehicles;
+  const active = shown.filter((v) => v.is_active);
   const count = (fn) => active.filter(fn).length;
   holder.innerHTML = `
     <div class="page-actions">
@@ -46,15 +45,16 @@ export async function render(ctx) {
         · arenda: <strong>${count((v) => v.ownership === 'rented')}</strong>
         · reys bay: <strong>${count((v) => v.ownership === 'per_trip')}</strong></span>
       <span class="page-actions__spacer"></span>
-      ${canManage ? `<button type="button" class="btn btn--primary" data-create>${icon('i-plus')} Yangi transport</button>` : ''}
+      ${canManage ? `<button type="button" class="btn btn--primary" data-create>${icon('i-plus')} ${kindFilter ? `Yangi: ${escapeHtml(KIND[kindFilter].toLowerCase())}` : 'Yangi transport'}</button>` : ''}
     </div>
     <section class="box">
       <div class="table-wrap"><table class="table">
-        <thead><tr><th>Davlat raqami</th><th>Turi</th><th>Egasi</th><th class="num">Sig‘imi</th><th>Haydovchi</th><th>Holat</th><th class="num">Qatnovlar</th>${canManage ? '<th></th>' : ''}</tr></thead>
-        <tbody>${vehicles.length ? vehicles.map((v) => `
+        <thead><tr><th>Davlat raqami</th><th>Turi</th>${kindFilter ? '' : '<th>Bo‘lim</th>'}<th>Egasi</th><th class="num">Sig‘imi</th><th>Haydovchi</th><th>Holat</th><th class="num">Qatnovlar</th>${canManage ? '<th></th>' : ''}</tr></thead>
+        <tbody>${shown.length ? shown.map((v) => `
           <tr data-id="${v.id}" class="${v.is_active ? '' : 'muted'}">
             <td class="strong nowrap">${escapeHtml(v.plate_number)}${v.is_active ? '' : ' <span class="badge badge--muted">Nofaol</span>'}</td>
             <td>${escapeHtml(v.vehicle_type)}</td>
+            ${kindFilter ? '' : `<td>${escapeHtml(KIND[v.kind] || v.kind)}</td>`}
             <td>${escapeHtml(OWNERSHIP[v.ownership])}${v.rental_company ? `<br><span class="muted">${escapeHtml(v.rental_company)}</span>` : ''}</td>
             <td class="num">${v.capacity_m3 !== null ? volume(v.capacity_m3) : '<span class="muted">Noma’lum</span>'}</td>
             <td>${v.default_driver_name ? `${escapeHtml(v.default_driver_name)}<br>${phoneLink(v.default_driver_phone)}` : (v.contact_phone ? phoneLink(v.contact_phone) : '<span class="muted">—</span>')}</td>
@@ -67,11 +67,11 @@ export async function render(ctx) {
               <button type="button" class="icon-btn" data-edit aria-label="Tahrirlash" title="Tahrirlash">${icon('i-edit')}</button>
               ${v.trips_count === 0 ? `<button type="button" class="icon-btn" data-delete aria-label="O‘chirish" title="O‘chirish">${icon('i-trash')}</button>` : ''}
             </td>` : ''}
-          </tr>`).join('') : emptyRow(canManage ? 8 : 7, 'Transport hali kiritilmagan. «Yangi transport» orqali o‘zimizniki, arenda va reys bay mashinalarni qo‘shing.')}
+          </tr>`).join('') : emptyRow(canManage ? 9 : 8, `${kindFilter ? KIND_TITLE[kindFilter] : 'Transport'} hali kiritilmagan. Yuqoridagi tugma orqali o‘zimizniki, arenda va reys bay transportni qo‘shing.`)}
         </tbody></table></div>
     </section>`;
 
-  holder.querySelector('[data-create]')?.addEventListener('click', () => vehicleForm(null, drivers, () => render(ctx)));
+  holder.querySelector('[data-create]')?.addEventListener('click', () => vehicleForm(null, drivers, () => render(ctx), kindFilter));
   holder.querySelectorAll('tr[data-id]').forEach((row) => {
     const vehicle = vehicles.find((v) => v.id === Number(row.dataset.id));
     row.querySelector('[data-edit]')?.addEventListener('click', () => vehicleForm(vehicle, drivers, () => render(ctx)));
@@ -97,8 +97,8 @@ export async function render(ctx) {
   });
 }
 
-function vehicleForm(vehicle, drivers, onSaved) {
-  const v = vehicle || { plate_number: '', vehicle_type: 'Beton mikser', ownership: 'own', capacity_m3: null, default_driver_id: null, contact_phone: '', rental_company: '', status: 'free', is_active: true, notes: '' };
+function vehicleForm(vehicle, drivers, onSaved, defaultKind = null) {
+  const v = vehicle || { plate_number: '', vehicle_type: defaultKind === 'pump' ? 'Beton nasosi' : (defaultKind === 'other' ? '' : 'Beton mikser'), kind: defaultKind || 'mixer', ownership: 'own', capacity_m3: null, default_driver_id: null, contact_phone: '', rental_company: '', status: 'free', is_active: true, notes: '' };
   const driverOptions = [{ value: '', label: '— tanlanmagan —' }].concat(
     drivers.filter((d) => d.is_active || d.id === v.default_driver_id).map((d) => ({ value: d.id, label: d.full_name })),
   );
@@ -107,7 +107,11 @@ function vehicleForm(vehicle, drivers, onSaved) {
     body: `
       <div class="form-row">
         ${field({ name: 'plate_number', label: 'Davlat raqami', value: v.plate_number, required: true, attrs: 'maxlength="20" placeholder="01 A 123 BC" autocapitalize="characters"' })}
-        ${field({ name: 'vehicle_type', label: 'Transport turi', value: v.vehicle_type, required: true, attrs: 'maxlength="50" placeholder="Beton mikser"' })}
+        ${field({ name: 'vehicle_type', label: 'Transport nomi', value: v.vehicle_type, required: true, attrs: 'maxlength="50" placeholder="Beton mikser"' })}
+      </div>
+      <div class="form-row">
+        ${field({ name: 'kind', label: 'Bo‘lim', options: Object.entries(KIND).map(([value, label]) => ({ value, label })), value: v.kind })}
+        <div></div>
       </div>
       <div class="form-row">
         ${field({ name: 'ownership', label: 'Egasi', options: Object.entries(OWNERSHIP).map(([value, label]) => ({ value, label })), value: v.ownership })}
@@ -138,6 +142,7 @@ function vehicleForm(vehicle, drivers, onSaved) {
       const body = {
         plate_number: f.plate_number.value,
         vehicle_type: f.vehicle_type.value.trim(),
+        kind: f.kind.value,
         ownership: f.ownership.value,
         capacity_m3: capacity,
         default_driver_id: f.default_driver_id.value ? Number(f.default_driver_id.value) : null,
@@ -195,7 +200,7 @@ async function renderTrips(ctx, holder) {
         </tbody></table></div>
     </section>`;
 
-  holder.querySelector('#tripsDate').addEventListener('change', (e) => setQuery({ tab: 'trips', date: e.target.value }));
+  holder.querySelector('#tripsDate').addEventListener('change', (e) => setQuery({ date: e.target.value }));
   holder.querySelectorAll('tr[data-href]').forEach((row) => row.addEventListener('click', (e) => {
     if (!e.target.closest('a')) location.hash = row.dataset.href;
   }));

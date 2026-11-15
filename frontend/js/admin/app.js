@@ -7,10 +7,20 @@ import { login, logout, restoreSession, session, clearSession } from './auth.js'
 import { onUnauthorized } from './http.js';
 import { PERM, ROLES, errorHtml } from './components.js';
 
+const WH_CATEGORIES = [
+  ['cement', 'Sement'], ['sand', 'Qum'], ['gravel', 'Shag‘al'], ['crushed_stone', 'Chaqiqtosh'], ['water', 'Suv'],
+  ['additive', 'Kimyoviy qo‘shimchalar'], ['other', 'Boshqa xomashyo'],
+];
+
+/**
+ * Menyu. `children` bor bo'lsa — ochiladigan bo'lim: sahifa (`route`) o'zi ham ochiladi, ichidagi bo'limlar
+ * `route` (hash: #/route) bilan ochiladi. `view` — qaysi modul chizadi (bo'lmasa route nomi), `level: 2` — ichma-ich.
+ */
 const NAV = [
   { group: 'Asosiy', items: [
     { route: 'dashboard', label: 'Dashboard', icon: 'i-dashboard', perm: PERM.DASHBOARD },
     { route: 'orders', label: 'Buyurtmalar', icon: 'i-box', perm: PERM.ORDERS_READ },
+    { route: 'analysis', label: 'Analiz', icon: 'i-chart', perm: PERM.DASHBOARD },
   ] },
   { group: 'Katalog', items: [
     { route: 'products', label: 'Beton markalari', icon: 'i-layers', perm: PERM.ORDERS_READ },
@@ -18,9 +28,35 @@ const NAV = [
     { route: 'customers', label: 'Mijozlar', icon: 'i-user', perm: PERM.CUSTOMERS_READ },
   ] },
   { group: 'Operatsiyalar', items: [
-    { route: 'vehicles', label: 'Transport', icon: 'i-truck', perm: PERM.FLEET_READ },
-    { route: 'drivers', label: 'Haydovchilar', icon: 'i-user', perm: PERM.FLEET_READ },
-    { route: 'production', label: 'Ishlab chiqarish', icon: 'i-factory', perm: PERM.PRODUCTION_READ },
+    { route: 'transport', label: 'Transport', icon: 'i-truck', perm: PERM.FLEET_READ, children: [
+      { route: 'vehicles', label: 'Transportlar' },
+      { route: 'mixers', label: 'Mikserlar', view: 'vehicles', kind: 'mixer' },
+      { route: 'pumps', label: 'Beton nasoslari', view: 'vehicles', kind: 'pump' },
+      { route: 'others', label: 'Boshqa transport', view: 'vehicles', kind: 'other' },
+      { route: 'planning', label: 'Logistika rejalashtirish' },
+      { route: 'trips', label: 'Qatnovlar', view: 'vehicles' },
+      { route: 'expenses', label: 'Xarajatlar' },
+      { route: 'drivers', label: 'Haydovchilar' },
+      { route: 'fleet-report', label: 'Hisobotlar' },
+    ] },
+    { route: 'warehouse', label: 'Ombor', icon: 'i-warehouse', perm: PERM.WAREHOUSE_READ, children: [
+      { route: 'materials', label: 'Xomashyo', view: 'warehouse' },
+      ...WH_CATEGORIES.map(([key, label]) => ({ route: `materials/${key}`, label, view: 'warehouse', level: 2 })),
+      { route: 'finished', label: 'Tayyor mahsulot', view: 'warehouse' },
+      { route: 'input', label: 'Kirim', view: 'warehouse' },
+      { route: 'output', label: 'Chiqim', view: 'warehouse' },
+      { route: 'release', label: 'Ishlab chiqarishga berish', view: 'warehouse' },
+      { route: 'transfers', label: 'Omborlar aro harakat', view: 'warehouse' },
+      { route: 'inventory', label: 'Inventarizatsiya', view: 'warehouse' },
+      { route: 'suppliers', label: 'Ta’minotchilar', view: 'warehouse' },
+      { route: 'history', label: 'Material tarixi', view: 'warehouse' },
+      { route: 'wh-report', label: 'Ombor hisobotlari', view: 'warehouse' },
+      { route: 'warehouses', label: 'Omborlar', view: 'warehouse' },
+    ] },
+    { route: 'production-panel', label: 'Ishlab chiqarish', icon: 'i-factory', perm: PERM.PRODUCTION_READ, children: [
+      { route: 'production', label: 'Reja va yozuvlar' },
+    ] },
+    { route: 'lab', label: 'Laboratoriya', icon: 'i-flask', perm: PERM.LAB_READ },
     { route: 'projects', label: 'Loyihalar va galereya', icon: 'i-image', perm: PERM.PROJECTS_MANAGE },
   ] },
   { group: 'Tizim', items: [
@@ -31,7 +67,14 @@ const NAV = [
   ] },
 ];
 
-const ROUTES = Object.fromEntries(NAV.flatMap((g) => g.items).map((item) => [item.route, item]));
+/** Barcha marshrutlar (bosh bo'lim ham, ichidagilar ham): ichidagilar ota-onaning ruxsatini oladi */
+const ROUTES = {};
+NAV.flatMap((g) => g.items).forEach((item) => {
+  ROUTES[item.route] = { ...item, parent: null };
+  (item.children || []).forEach((child) => {
+    ROUTES[child.route] = { icon: item.icon, perm: item.perm, ...child, parent: item.route };
+  });
+});
 
 const VIEWS = {
   dashboard: () => import('./views/dashboard.js'),
@@ -42,12 +85,19 @@ const VIEWS = {
   users: () => import('./views/users.js'),
   settings: () => import('./views/settings.js'),
   vehicles: () => import('./views/vehicles.js'),
+  transport: () => import('./views/transport.js'),
+  planning: () => import('./views/transport.js'),
+  expenses: () => import('./views/transport.js'),
+  'fleet-report': () => import('./views/transport.js'),
   drivers: () => import('./views/drivers.js'),
+  warehouse: () => import('./views/warehouse.js'),
+  'production-panel': () => import('./views/production-panel.js'),
   production: () => import('./views/production.js'),
+  lab: () => import('./views/lab.js'),
+  analysis: () => import('./views/analysis.js'),
   projects: () => import('./views/projects.js'),
   telegram: () => import('./views/telegram.js'),
   inbox: () => import('./views/inbox.js'),
-  soon: () => import('./views/soon.js'),
 };
 
 const el = {
@@ -99,25 +149,36 @@ function startApp() {
    Menyu
    ========================================================================== */
 
+function navLink(item) {
+  return `<a class="admin-nav__link${item.level === 2 ? ' admin-nav__link--sub2' : ''}" href="#/${item.route}" data-route="${item.route}">
+      ${item.icon ? icon(item.icon) : ''}<span>${escapeHtml(item.label)}</span>
+      ${item.children ? icon('i-chevron', 'admin-nav__chevron') : ''}
+    </a>`;
+}
+
 function renderNav() {
   el.nav.innerHTML = NAV.map((group) => {
-    const items = group.items.filter((item) => item.soon || session.can(item.perm));
+    const items = group.items.filter((item) => session.can(item.perm));
     if (!items.length) return '';
-    return `<div class="admin-nav__group">${escapeHtml(group.group)}</div>${items
-      .map((item) => `<a class="admin-nav__link${item.soon ? ' is-soon' : ''}" href="#/${item.route}" data-route="${item.route}">
-          ${icon(item.icon)}<span>${escapeHtml(item.label)}</span>
-          ${item.soon ? `<span class="admin-nav__soon" title="${item.soon}-bosqichda qo‘shiladi">${item.soon}-bosqich</span>` : ''}
-        </a>`)
-      .join('')}`;
+    return `<div class="admin-nav__group">${escapeHtml(group.group)}</div>${items.map((item) => {
+      if (!item.children) return navLink(item);
+      return `${navLink(item)}<div class="admin-nav__sub" data-parent="${item.route}" hidden>${
+        item.children.map((c) => navLink({ ...c, icon: '' })).join('')}</div>`;
+    }).join('')}`;
   }).join('');
 }
 
 function markNav(routeName) {
+  const parent = ROUTES[routeName]?.parent || routeName;
   el.nav.querySelectorAll('[data-route]').forEach((link) => {
     const active = link.dataset.route === routeName;
     link.classList.toggle('is-active', active);
+    link.classList.toggle('is-open', link.dataset.route === parent && !!ROUTES[parent]?.children);
     if (active) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
+  });
+  el.nav.querySelectorAll('.admin-nav__sub').forEach((sub) => {
+    sub.hidden = sub.dataset.parent !== parent;
   });
 }
 
@@ -158,7 +219,8 @@ async function route() {
   if (!session.user) return;
   const token = ++renderToken;
   const { parts, query } = parseHash();
-  const name = parts[0] || 'dashboard';
+  const pair = parts.length > 1 ? `${parts[0]}/${parts[1]}` : '';
+  const name = pair && ROUTES[pair] ? pair : (parts[0] || 'dashboard');
   const meta = ROUTES[name];
 
   setSidebar(false);
@@ -167,7 +229,7 @@ async function route() {
     navigate('dashboard', { replace: true });
     return;
   }
-  if (!meta.soon && !session.can(meta.perm)) {
+  if (!session.can(meta.perm)) {
     markNav(name);
     el.title.textContent = meta.label;
     el.view.innerHTML = `<div class="box coming-soon">${icon('i-shield')}<h2>Ruxsat yo‘q</h2>
@@ -180,7 +242,7 @@ async function route() {
   document.title = `${meta.label} — Admin — BETON INDUSTRY`;
 
   try {
-    const module = await VIEWS[meta.soon ? 'soon' : name]();
+    const module = await VIEWS[meta.view || name]();
     if (token !== renderToken) return; // foydalanuvchi boshqa sahifaga o'tib ketgan
     el.view.innerHTML = '';
     await module.render({
