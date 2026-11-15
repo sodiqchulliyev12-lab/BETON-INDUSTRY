@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -193,16 +193,28 @@ class ExpenseIn(InputModel):
     category: Literal["fuel", "parts", "repair", "tires", "insurance", "other"]
     amount: Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=2)]
     note: Annotated[str | None, Field(default=None, max_length=500)]
+    fuel_type: Literal["gas", "diesel", "petrol"] | None = None
+    quantity: Annotated[Decimal | None, Field(default=None, gt=0, max_digits=12, decimal_places=2)]
 
     @field_validator("note")
     @classmethod
     def _clean(cls, v: str | None) -> str | None:
         return clean_text(v)
 
+    @model_validator(mode="after")
+    def _fuel(self):
+        if self.category == "fuel" and self.fuel_type is None:
+            raise ValueError("Yoqilg‘i turini tanlang: gaz, dizel (solyarka) yoki benzin.")
+        if self.category != "fuel":
+            self.fuel_type = None
+            self.quantity = None
+        return self
+
 
 def _expense_out(e: VehicleExpense) -> dict:
     return {"id": e.id, "vehicle_id": e.vehicle_id, "plate_number": e.vehicle.plate_number, "expense_date": e.expense_date.isoformat(),
-            "category": e.category, "amount": _f(e.amount), "note": e.note}
+            "category": e.category, "amount": _f(e.amount), "note": e.note,
+            "fuel_type": e.fuel_type, "quantity": _f(e.quantity) if e.quantity is not None else None}
 
 
 def _check_expense(db: Session, payload: ExpenseIn) -> None:
@@ -214,7 +226,7 @@ def _check_expense(db: Session, payload: ExpenseIn) -> None:
 
 @router.get("/fleet/expenses")
 def list_expenses(date_from: date | None = None, date_to: date | None = None, vehicle_id: int | None = None,
-                  db: Session = Depends(get_db), _: User = Depends(require(Perm.FLEET_READ))):
+                  category: str | None = None, fuel_type: str | None = None, db: Session = Depends(get_db), _: User = Depends(require(Perm.FLEET_READ))):
     q = select(VehicleExpense).order_by(VehicleExpense.expense_date.desc(), VehicleExpense.id.desc()).limit(500)
     if date_from:
         q = q.where(VehicleExpense.expense_date >= date_from)
@@ -222,6 +234,10 @@ def list_expenses(date_from: date | None = None, date_to: date | None = None, ve
         q = q.where(VehicleExpense.expense_date <= date_to)
     if vehicle_id:
         q = q.where(VehicleExpense.vehicle_id == vehicle_id)
+    if category:
+        q = q.where(VehicleExpense.category == category)
+    if fuel_type:
+        q = q.where(VehicleExpense.fuel_type == fuel_type)
     items = [_expense_out(e) for e in db.scalars(q)]
     by_cat: dict[str, float] = {}
     for i in items:

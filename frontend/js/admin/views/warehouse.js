@@ -6,6 +6,7 @@ import { formatNumber } from '../../ui.js';
 import { http, qs } from '../http.js';
 import { session } from '../auth.js';
 import { setQuery } from '../app.js';
+import { bindPeriod, rangeBar } from '../period.js';
 import { todayISO } from '../../validators.js';
 import { meter } from '../charts.js';
 import {
@@ -93,16 +94,15 @@ function materialTable(items, canManage) {
 function filterBar({ warehouses, wid, category, from, to, showCategory = true, extra = '' }) {
   const sel = (id, opts, val) => `<select class="select" id="${id}">${opts.map((o) => `<option value="${escapeHtml(o.value)}" ${String(o.value) === String(val || '') ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select>`;
   return `<div class="page-actions">${sel('fWh', warehouseOptions(warehouses), wid)}${showCategory ? sel('fCat', categoryOptions(), category) : ''}
-    <label class="text-muted">Dan:</label><input class="input" type="date" id="fFrom" value="${escapeHtml(from)}">
-    <label class="text-muted">Gacha:</label><input class="input" type="date" id="fTo" value="${escapeHtml(to)}">${extra}</div>`;
+    ${rangeBar({ from, to })}${extra}</div>`;
 }
 
 function bindFilters(holder) {
   const go = () => setQuery({
     wid: holder.querySelector('#fWh')?.value, cat: holder.querySelector('#fCat')?.value,
-    from: holder.querySelector('#fFrom')?.value, to: holder.querySelector('#fTo')?.value,
   });
-  holder.querySelectorAll('#fWh, #fCat, #fFrom, #fTo').forEach((el) => el.addEventListener('change', go));
+  holder.querySelectorAll('#fWh, #fCat').forEach((el) => el.addEventListener('change', go));
+  bindPeriod(holder);
 }
 
 async function dashboard(ctx, holder) {
@@ -241,7 +241,7 @@ async function movementsPage(ctx, holder, key) {
     const kindSel = key === 'history' ? `<select class="select" id="fKind">${[['', 'Barcha turlar'], ...Object.entries(KIND)].map(([v, l]) => `<option value="${v}" ${v === kind ? 'selected' : ''}>${escapeHtml(l)}</option>`).join('')}</select>` : '';
     holder.innerHTML = `<div class="page-actions"><select class="select" id="fWh">${warehouseOptions(lk.warehouses).map((o) => `<option value="${escapeHtml(o.value)}" ${String(o.value) === wid ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select>
       <select class="select" id="fMat">${matOpts.map((o) => `<option value="${escapeHtml(o.value)}" ${String(o.value) === mid ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select>${kindSel}
-      <label class="text-muted">Dan:</label><input class="input" type="date" id="fFrom" value="${escapeHtml(from)}"><label class="text-muted">Gacha:</label><input class="input" type="date" id="fTo" value="${escapeHtml(to)}">
+      ${rangeBar({ from, to })}
       <span class="page-actions__spacer"></span>${addBtn}</div>
       <section class="box"><div class="table-wrap"><table class="table"><thead><tr><th>Sana</th><th>Material</th><th>Turi</th><th>Ombor</th><th class="num">Miqdor</th><th>Ta’minotchi / hujjat</th><th>Izoh</th>${canManage ? '<th></th>' : ''}</tr></thead>
       <tbody>${moves.length ? moves.map((x) => `<tr data-id="${x.id}"><td class="nowrap">${fmtDate(x.movement_date)}</td><td class="strong">${escapeHtml(x.material)}</td><td>${escapeHtml(KIND[x.kind] || x.kind)}</td><td>${escapeHtml(x.warehouse)}</td>
@@ -249,8 +249,9 @@ async function movementsPage(ctx, holder, key) {
         <td>${escapeHtml(x.supplier || '')}${x.document_no ? `<br><span class="muted">${escapeHtml(x.document_no)}</span>` : ''}${x.unit_price !== null ? `<br><span class="muted">${nf(x.unit_price, 0)} so‘m/${escapeHtml(unitOf(x.unit))}</span>` : ''}</td>
         <td>${escapeHtml(x.note || '')}</td>${canManage ? `<td class="num"><button class="icon-btn" data-del aria-label="O‘chirish">${icon('i-trash')}</button></td>` : ''}</tr>`).join('')
     : emptyRow(canManage ? 8 : 7, 'Bu davrda harakat yo‘q.')}</tbody></table></div></section>`;
-    const go = () => setQuery({ wid: holder.querySelector('#fWh').value, mid: holder.querySelector('#fMat').value, kind: holder.querySelector('#fKind')?.value, from: holder.querySelector('#fFrom').value, to: holder.querySelector('#fTo').value });
-    holder.querySelectorAll('#fWh, #fMat, #fKind, #fFrom, #fTo').forEach((el) => el.addEventListener('change', go));
+    const go = () => setQuery({ wid: holder.querySelector('#fWh').value, mid: holder.querySelector('#fMat').value, kind: holder.querySelector('#fKind')?.value });
+    holder.querySelectorAll('#fWh, #fMat, #fKind').forEach((el) => el.addEventListener('change', go));
+    bindPeriod(holder);
     holder.querySelector('[data-add]')?.addEventListener('click', () => movementForm(page.add, lk, reload));
     holder.querySelector('[data-add-any]')?.addEventListener('click', () => movementForm('in', lk, reload, true));
     holder.querySelector('[data-transfer]')?.addEventListener('click', () => transferForm(lk, reload));

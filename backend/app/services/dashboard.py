@@ -20,7 +20,8 @@ def _f(value: Decimal | None) -> float:
     return float(value or 0)
 
 
-def dashboard(db: Session, days: int = 30) -> dict[str, Any]:
+def dashboard(db: Session, days: int = 30, end: date | None = None) -> dict[str, Any]:
+    """days — grafik kunlari soni; end — grafik oxirgi kuni (bo'lmasa bugun)."""
     by_status = {status.value: 0 for status in OrderStatus}
     for status, count in db.execute(select(Order.status, func.count()).group_by(Order.status)):
         by_status[status.value] = count
@@ -44,12 +45,14 @@ def dashboard(db: Session, days: int = 30) -> dict[str, Any]:
     # Kunlarga ajratish Python'da — bazadagi vaqt zonalari sozlamasiga bog'liq bo'lmasligi uchun.
     tz = local_tz()
     today = today_local()
-    start = today - timedelta(days=days - 1)
+    chart_end = min(end or today, today)
+    start = chart_end - timedelta(days=days - 1)
     start_utc = datetime.combine(start, time.min, tzinfo=tz)
+    end_utc = datetime.combine(chart_end + timedelta(days=1), time.min, tzinfo=tz)
     per_order = db.execute(
         select(Order.id, Order.created_at, func.coalesce(func.sum(OrderItem.volume_m3), 0))
         .join(OrderItem, OrderItem.order_id == Order.id)
-        .where(Order.created_at >= start_utc, not_cancelled)
+        .where(Order.created_at >= start_utc, Order.created_at < end_utc, not_cancelled)
         .group_by(Order.id, Order.created_at)
     ).all()
     buckets: dict[date, list[Decimal]] = {}

@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 
 from app.utils.timezone import today_local
+from tests.test_fleet import setup  # noqa: F401  (fixture)
 
 API = "/api/v1/admin"
 
@@ -27,11 +28,11 @@ def test_vehicle_kind_summary_expenses_report(client, login):
     assert s["total"] == 2 and s["by_kind"] == {"mixer": 1, "pump": 1, "other": 0, "car": 0}
     assert s["by_ownership"]["rented"]["pump"] == 1 and len(s["daily"]) == 14
 
-    e = client.post(f"{API}/fleet/expenses", headers=h, json={"vehicle_id": mixer["id"], "expense_date": day(), "category": "fuel", "amount": 250000})
+    e = client.post(f"{API}/fleet/expenses", headers=h, json={"vehicle_id": mixer["id"], "expense_date": day(), "category": "fuel", "fuel_type": "diesel", "amount": 250000})
     assert e.status_code == 201
-    future = client.post(f"{API}/fleet/expenses", headers=h, json={"vehicle_id": mixer["id"], "expense_date": day(2), "category": "fuel", "amount": 1})
+    future = client.post(f"{API}/fleet/expenses", headers=h, json={"vehicle_id": mixer["id"], "expense_date": day(2), "category": "fuel", "fuel_type": "diesel", "amount": 1})
     assert future.status_code == 422
-    assert client.post(f"{API}/fleet/expenses", headers=h, json={"vehicle_id": mixer["id"], "expense_date": day(), "category": "fuel", "amount": 0}).status_code == 422
+    assert client.post(f"{API}/fleet/expenses", headers=h, json={"vehicle_id": mixer["id"], "expense_date": day(), "category": "fuel", "fuel_type": "diesel", "amount": 0}).status_code == 422
     lst = client.get(f"{API}/fleet/expenses", headers=h).json()
     assert lst["total"] == 250000 and lst["by_category"] == {"fuel": 250000}
 
@@ -210,7 +211,7 @@ def test_kind_reports(client, login):
     assert mixer["inspection_status"] == "soon" and car["inspection_status"] == "overdue" and pump["inspection_status"] == "unknown"
 
     def expense(v, cat, amount):
-        assert client.post(f"{API}/fleet/expenses", headers=h, json={"vehicle_id": v["id"], "expense_date": day(), "category": cat, "amount": amount}).status_code == 201
+        assert client.post(f"{API}/fleet/expenses", headers=h, json={"vehicle_id": v["id"], "expense_date": day(), "category": cat, "fuel_type": "diesel" if cat == "fuel" else None, "amount": amount}).status_code == 201
 
     expense(mixer, "fuel", 400000); expense(mixer, "parts", 150000); expense(mixer, "other", 50000)
     expense(pump, "fuel", 300000); expense(car, "parts", 80000)
@@ -247,3 +248,57 @@ def test_kind_reports(client, login):
     viewer = login("viewer")
     assert client.get(f"{API}/fleet/kind/pump", headers=viewer).status_code == 200
     assert client.post(f"{API}/fleet/taxi", headers=viewer, json={"ride_date": day(), "amount": 1000}).status_code == 403
+
+
+# --- Yoqilg'i turlari va haydovchi almashinuvi --------------------------------
+
+def test_fuel_types_and_driver_rotation(client, setup, tomorrow):
+    h, oid, own = setup["h"], setup["order_id"], setup["own"]
+    d2 = client.post(f"{API}/drivers", headers=h, json={"full_name": "Haydovchi Ikki", "phone": "90 222 33 44"}).json()
+    url = f"{API}/orders/{oid}/trips"
+    assert client.post(url, headers=h, json={"vehicle_id": own["id"], "volume_m3": 8}).status_code == 201  # odatdagi haydovchi
+    assert client.post(url, headers=h, json={"vehicle_id": own["id"], "driver_id": d2["id"], "volume_m3": 8}).status_code == 201
+
+    # bitta mashinani bir kunda ikki haydovchi haydadi
+    u = client.get(f"{API}/fleet/usage?date={tomorrow}&vehicle_id={own['id']}", headers=h).json()
+    assert u["totals"]["day"]["trips"] == 2 and u["drivers_count"]["day"] == 2
+    assert {r["name"] for r in u["by_driver"]} == {"Haydovchi Bir", "Haydovchi Ikki"} and len(u["trips_day"]) == 2
+    # haydovchi bo'yicha filtr
+    u2 = client.get(f"{API}/fleet/usage?date={tomorrow}&driver_id={d2['id']}", headers=h).json()
+    assert u2["totals"]["day"]["trips"] == 1 and len(u2["by_vehicle"]) == 1 and u2["fuel"] is None
+    k = client.get(f"{API}/fleet/kind/mixer?date={tomorrow}", headers=h).json()
+    row = next(r for r in k["vehicles"] if r["id"] == own["id"])
+    assert {d["name"] for d in row["drivers"]} == {"Haydovchi Bir", "Haydovchi Ikki"} and row["default_driver"] == "Haydovchi Bir"
+    # bitta haydovchi ikki mashinani haydashi: ikkinchi mashina (ijara)
+    client.post(url, headers=h, json={"vehicle_id": setup["rented"]["id"], "driver_id": d2["id"], "volume_m3": 4})
+    u3 = client.get(f"{API}/fleet/usage?date={tomorrow}&driver_id={d2['id']}", headers=h).json()
+    assert len(u3["by_vehicle"]) == 2 and u3["vehicles_count"]["day"] == 2
+
+    # yoqilg'i: tur majburiy
+    base = {"vehicle_id": own["id"], "expense_date": day(), "category": "fuel"}
+    assert client.post(f"{API}/fleet/expenses", headers=h, json={**base, "amount": 100000}).status_code == 422
+    for ft, amount, qty in (("diesel", 700000, 55), ("diesel", 300000, 25), ("gas", 200000, 120), ("petrol", 150000, 14)):
+        assert client.post(f"{API}/fleet/expenses", headers=h, json={**base, "fuel_type": ft, "amount": amount, "quantity": qty}).status_code == 201
+    # boshqa kategoriyada yoqilg'i turi saqlanmaydi
+    client.post(f"{API}/fleet/expenses", headers=h, json={**base, "category": "parts", "fuel_type": "gas", "amount": 5000})
+    assert client.get(f"{API}/fleet/expenses?category=parts", headers=h).status_code == 200
+    f = client.get(f"{API}/fleet/fuel?date={day()}", headers=h).json()
+    assert f["types"]["day"]["diesel"] == {"cost": 1000000.0, "qty": 80.0, "count": 2}
+    assert f["types"]["period"]["gas"]["qty"] == 120 and f["types"]["period"]["petrol"]["cost"] == 150000 and f["total"]["day"] == 1350000
+    assert f["vehicles"][0]["by_type"]["diesel"]["cost"] == 1000000 and f["vehicles"][0]["total"] == 1350000
+    k2 = client.get(f"{API}/fleet/kind/mixer?date={day()}", headers=h).json()
+    assert k2["fuel_types"]["day"]["gas"]["cost"] == 200000 and k2["totals"]["day"]["fuel"] == 1350000
+    # eski sana: davr bo'yicha
+    old = client.get(f"{API}/fleet/fuel?date={day(-60)}&date_from={day(-90)}&date_to={day(-30)}", headers=h).json()
+    assert old["total"]["period"] == 0
+    assert client.get(f"{API}/fleet/fuel?date_from={day()}&date_to={day(-5)}", headers=h).status_code == 422
+
+
+def test_period_params(client, login):
+    h = login("manager")
+    assert client.get(f"{API}/production/panel?date={day(-40)}", headers=h).json()["today_m3"] == 0
+    a = client.get(f"{API}/analysis/overview?date_from={day(-100)}&date_to={day(-70)}", headers=h).json()
+    assert a["period_from"] == day(-100) and a["period_to"] == day(-70)
+    assert client.get(f"{API}/analysis/overview?date_from={day()}&date_to={day(-3)}", headers=h).status_code == 422
+    d = client.get(f"{API}/dashboard?days=60&date_to={day(-10)}", headers=h).json()
+    assert len(d["daily"]) == 60 and d["daily"][-1]["date"] == day(-10)

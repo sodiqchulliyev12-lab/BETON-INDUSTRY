@@ -1,6 +1,7 @@
+from datetime import date
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -13,5 +14,6 @@ router = APIRouter(prefix="/dashboard", tags=["Admin: dashboard"])
 
 
 @router.get("")
-def get_dashboard(db: Session = Depends(get_db), _: User = Depends(require(Perm.DASHBOARD))) -> dict[str, Any]:
-    return dashboard(db)
+def get_dashboard(days: int = Query(30, ge=7, le=365), date_to: date | None = None, db: Session = Depends(get_db),
+                  _: User = Depends(require(Perm.DASHBOARD))) -> dict[str, Any]:
+    return dashboard(db, days=days, end=date_to)

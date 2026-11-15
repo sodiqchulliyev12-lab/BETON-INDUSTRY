@@ -250,3 +250,23 @@
 .status--insp-unknown { background: var(--c-gray-200); color: var(--c-text-muted); }
 .dm { white-space: nowrap; }
 .dm small { color: var(--c-text-muted); }
+
+/* --- Davr tanlash paneli --- */
+.pbar { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 4px 6px; background: #fff; border: 1px solid var(--c-gray-200); border-radius: var(--radius); }
+.pbar__label { padding: 0 4px; font-size: var(--fs-xs); font-weight: 700; color: var(--c-text-muted); }
+.pbar__btn { min-width: 34px; font-size: 1.1rem; line-height: 1; padding-inline: 8px; }
+.pbar__date { width: 150px; padding-block: 7px; }
+.pbar__dash { color: var(--c-text-muted); }
+.pbar__preset { width: 170px; padding-block: 7px; }
+.pbar .btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+.fuel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--sp-4); margin-bottom: var(--sp-5); }
+.fuel-card { padding: var(--sp-4); background: #fff; border: 1px solid var(--c-gray-200); border-top: 4px solid var(--c-gray-300); border-radius: var(--radius); }
+.fuel-card--gas { border-top-color: #2A6FB0; }
+.fuel-card--diesel { border-top-color: #E07B39; }
+.fuel-card--petrol { border-top-color: #2E7D4F; }
+.fuel-card--unknown { border-top-color: var(--c-gray-300); }
+.fuel-card h3 { margin: 0 0 6px; font-size: var(--fs-sm); }
+.fuel-card__big { font-family: var(--f-display); font-size: 1.6rem; line-height: 1.1; }
+.fuel-card__big small { font-family: var(--f-body); font-size: var(--fs-xs); color: var(--c-text-muted); font-weight: 600; }
+.fuel-card p { margin: 4px 0 0; font-size: var(--fs-xs); color: var(--c-text-muted); }
+.drv-chip { display: inline-block; margin: 1px 2px 1px 0; padding: 1px 8px; font-size: 0.75rem; border-radius: 999px; background: var(--c-gray-200); white-space: nowrap; }

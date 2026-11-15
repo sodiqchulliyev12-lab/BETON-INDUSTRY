@@ -7,6 +7,7 @@ import { formatNumber } from '../../ui.js';
 import { http, qs } from '../http.js';
 import { session } from '../auth.js';
 import { setQuery } from '../app.js';
+import { bindPeriod, rangeBar } from '../period.js';
 import { todayISO } from '../../validators.js';
 import { groupedBars } from '../charts.js';
 import {
@@ -54,7 +55,7 @@ export async function render(ctx) {
     <div class="page-actions">
       <select class="select" id="lProduct"><option value="">Barcha markalar</option>${products.map((p) => `<option value="${p.id}" ${String(p.id) === product ? 'selected' : ''}>${escapeHtml(p.name ? `${p.name} · ${p.grade_class}` : p.grade_class)}</option>`).join('')}</select>
       <select class="select" id="lResult">${[['', 'Natija: barchasi'], ['pass', 'O‘tdi'], ['fail', 'O‘tmadi'], ['pending', 'Kutilmoqda'], ['overdue', 'Muddati o‘tgan']].map(([v, l]) => `<option value="${v}" ${v === result ? 'selected' : ''}>${l}</option>`).join('')}</select>
-      <label class="text-muted">Dan:</label><input class="input" type="date" id="lFrom" value="${escapeHtml(from)}"><label class="text-muted">Gacha:</label><input class="input" type="date" id="lTo" value="${escapeHtml(to)}">
+      ${rangeBar({ from, to })}
       <span class="page-actions__spacer"></span>${canManage ? `<button class="btn btn--primary" data-add>${icon('i-plus')} Yangi namuna</button>` : ''}</div>
     <div class="stats">
       ${stat({ label: 'Bugungi namunalar', value: sum.samples_today, hint: `Davrda: ${sum.samples_period}`, tone: 'accent' })}
@@ -82,8 +83,9 @@ export async function render(ctx) {
     : emptyRow(canManage ? 8 : 7, 'Namuna hali kiritilmagan. «Yangi namuna» tugmasi orqali qo‘shing.')}</tbody></table></div></section>
     <p class="text-muted mt-5">Natija qoidasi: namuna 28 kunlik sinovda talab qilingan mustahkamlikka yetsa «O‘tdi». 3, 7 va 14 kunlik natijalar faqat kuzatish uchun — ularga me’yor taxmin qilinmaydi.</p>`;
 
-  const go = () => setQuery({ product: root.querySelector('#lProduct').value, result: root.querySelector('#lResult').value, from: root.querySelector('#lFrom').value, to: root.querySelector('#lTo').value });
-  root.querySelectorAll('#lProduct, #lResult, #lFrom, #lTo').forEach((el) => el.addEventListener('change', go));
+  const go = () => setQuery({ product: root.querySelector('#lProduct').value, result: root.querySelector('#lResult').value });
+  root.querySelectorAll('#lProduct, #lResult').forEach((el) => el.addEventListener('change', go));
+  bindPeriod(root);
   root.querySelector('[data-add]')?.addEventListener('click', () => sampleForm(products, reload));
   root.querySelectorAll('tr[data-id]').forEach((row) => {
     const s = items.find((i) => i.id === Number(row.dataset.id));

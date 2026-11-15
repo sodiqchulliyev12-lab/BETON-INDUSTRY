@@ -49,6 +49,7 @@ class Vehicle(TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint("capacity_m3 IS NULL OR capacity_m3 > 0", name="capacity_positive"),
         CheckConstraint("kind IN ('mixer', 'pump', 'other', 'car')", name="kind_valid"),
+        CheckConstraint("fuel_type IS NULL OR fuel_type IN ('gas', 'diesel', 'petrol')", name="fuel_type_valid"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -71,6 +72,8 @@ class Vehicle(TimestampMixin, Base):
     # Texnik ko'rik: oxirgi o'tgan sana va keyingi muddat (kiritilmasa — noma'lum, taxmin qilinmaydi)
     inspection_date: Mapped[date | None] = mapped_column(Date)
     inspection_due: Mapped[date | None] = mapped_column(Date)
+    # Odatdagi yoqilg'i turi: gaz, dizel (solyarka) yoki benzin — xarajat kiritishda avtomatik tanlanadi
+    fuel_type: Mapped[str | None] = mapped_column(String(8))
 
     default_driver: Mapped[Driver | None] = relationship()
 
@@ -116,13 +119,20 @@ class VehicleExpense(CreatedAtMixin, Base):
     """Transport xarajatlari (yoqilg'i, ta'mir, shina, sug'urta...). Qatnov uchun to'lov (rental_cost) alohida."""
 
     __tablename__ = "vehicle_expenses"
-    __table_args__ = (CheckConstraint("amount > 0", name="amount_positive"),)
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="amount_positive"),
+        CheckConstraint("fuel_type IS NULL OR fuel_type IN ('gas', 'diesel', 'petrol')", name="fuel_type_valid"),
+        CheckConstraint("quantity IS NULL OR quantity > 0", name="quantity_positive"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id", ondelete="CASCADE"), index=True, nullable=False)
     expense_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
     category: Mapped[str] = mapped_column(String(15), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    # Yoqilg'i xarajati uchun: turi (gas / diesel / petrol) va miqdori (gaz — m³, dizel va benzin — litr)
+    fuel_type: Mapped[str | None] = mapped_column(String(8))
+    quantity: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     note: Mapped[str | None] = mapped_column(Text)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
@@ -159,10 +169,12 @@ class VehicleWorkLog(CreatedAtMixin, Base):
     hours: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     billed_to: Mapped[str] = mapped_column(String(10), nullable=False)
     order_id: Mapped[int | None] = mapped_column(ForeignKey("orders.id", ondelete="SET NULL"))
+    driver_id: Mapped[int | None] = mapped_column(ForeignKey("drivers.id", ondelete="SET NULL"))  # operator (almashishi mumkin)
     note: Mapped[str | None] = mapped_column(Text)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
     vehicle: Mapped[Vehicle] = relationship()
+    driver: Mapped[Driver | None] = relationship()
 
 
 class TaxiRide(CreatedAtMixin, Base):

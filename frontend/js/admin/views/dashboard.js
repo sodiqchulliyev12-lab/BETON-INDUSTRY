@@ -3,7 +3,8 @@
  * bo'sh holat chiqadi, ishlab chiqarish quvvati belgilanmagan bo'lsa "Belgilanmagan" yoziladi.
  */
 import { formatNumber } from '../../ui.js';
-import { http } from '../http.js';
+import { http, qs } from '../http.js';
+import { addDays, bindPeriod, periodFromQuery, rangeBar } from '../period.js';
 import { session } from '../auth.js';
 import { ORDER_STATUS, PERM, escapeHtml, fmtDate, icon, loadingHtml, statusBadge, volume } from '../components.js';
 
@@ -220,9 +221,12 @@ function valueStream(vs, data) {
   </section>`;
 }
 
-export async function render({ root, isCurrent }) {
+export async function render({ root, isCurrent, query }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const { from, to } = periodFromQuery(query, { from: addDays(today, -29), to: today });
+  const span = Math.min(365, Math.max(7, Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1));
   root.innerHTML = loadingHtml();
-  const data = await http('/admin/dashboard');
+  const data = await http(`/admin/dashboard${qs({ days: span, date_to: to })}`);
   if (!isCurrent()) return;
 
   const t = data.totals;
@@ -236,6 +240,7 @@ export async function render({ root, isCurrent }) {
     : stat({ label: 'Kunlik ishlab chiqarish quvvati', value: vol(capacity), hint: `Bugun rejada: ${escapeHtml(volume(data.today.volume_m3))}` });
 
   root.innerHTML = `
+    <div class="page-actions">${rangeBar({ from: addDays(to, -(span - 1)), to, label: 'Grafik davri' })}<span class="text-muted">Davr (7–365 kun) faqat grafikka ta’sir qiladi; kartalar — umumiy holat.</span></div>
     <div class="stats">
       ${stat({ label: 'Jami buyurtmalar', value: t.orders, href: '#/orders' })}
       ${stat({ label: 'Yangi', value: t.new, tone: 'accent', href: '#/orders?status=new', hint: 'Tasdiqlash kutilmoqda' })}
@@ -251,7 +256,7 @@ export async function render({ root, isCurrent }) {
     ${data.has_data ? `
       <div class="admin-grid admin-grid--main">
         <section class="box">
-          <div class="box__head"><h2 class="box__title">Oxirgi 30 kun: buyurtma hajmi (m³)</h2></div>
+          <div class="box__head"><h2 class="box__title">Buyurtma hajmi (m³): ${escapeHtml(fmtDate(data.daily[0].date))} – ${escapeHtml(fmtDate(data.daily.at(-1).date))}</h2></div>
           <div class="box__body">${dailyChart(data.daily)}</div>
         </section>
         <section class="box">
@@ -271,4 +276,5 @@ export async function render({ root, isCurrent }) {
           Soxta ma’lumot ko‘rsatilmaydi.</p>
         ${session.can(PERM.CATALOG_MANAGE) ? '<a class="btn btn--primary" href="#/products">Beton markalarini qo‘shish</a>' : ''}
       </div>`}`;
+  bindPeriod(root);
 }

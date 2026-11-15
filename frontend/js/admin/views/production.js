@@ -6,6 +6,7 @@ import { formatNumber } from '../../ui.js';
 import { http, qs } from '../http.js';
 import { session } from '../auth.js';
 import { setQuery } from '../app.js';
+import { bindPeriod, dayBar } from '../period.js';
 import { todayISO } from '../../validators.js';
 import {
   PERM, PLAN_STATUS, QC_STATUS, confirmAction, emptyRow, errorHtml, escapeHtml, field, fmtDate, fmtDateTime,
@@ -27,16 +28,13 @@ export async function render(ctx) {
 
   root.innerHTML = `
     <div class="page-actions">
-      <label class="text-muted" for="prodDate">Sana:</label>
-      <input class="input" type="date" id="prodDate" value="${escapeHtml(day)}">
-      ${day !== todayISO() ? '<button type="button" class="btn btn--outline btn--sm" data-today>Bugun</button>' : ''}
+      ${dayBar({ date: day, allowFuture: true })}
       <span class="page-actions__spacer"></span>
       ${canManage ? `<button type="button" class="btn btn--outline" data-add-plan>${icon('i-calendar')} Rejaga qo‘shish</button>
         <button type="button" class="btn btn--primary" data-add-record>${icon('i-plus')} Ishlab chiqarildi</button>` : ''}
     </div>
     <div id="prodView">${loadingHtml()}</div>`;
-  root.querySelector('#prodDate').addEventListener('change', (e) => setQuery({ date: e.target.value }));
-  root.querySelector('[data-today]')?.addEventListener('click', () => setQuery({ date: '' }));
+  bindPeriod(root);
 
   const holder = root.querySelector('#prodView');
   let summary;

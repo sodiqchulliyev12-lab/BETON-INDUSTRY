@@ -5,7 +5,8 @@
  * uchun "ma'lumot yig'ilmaydi" deb yoziladi — tizim hech narsani to'qimaydi.
  */
 import { formatNumber } from '../../ui.js';
-import { http } from '../http.js';
+import { http, qs } from '../http.js';
+import { addDays, bindPeriod, periodFromQuery, rangeBar } from '../period.js';
 import { session } from '../auth.js';
 import { gauge, meter } from '../charts.js';
 import {
@@ -30,12 +31,13 @@ function hours(h) {
 const section = (n, title, body, extra = '') => `<section class="box an-section"><div class="box__head"><h2 class="box__title"><span class="an-n">${n}</span> ${escapeHtml(title)}</h2>${extra}</div><div class="box__body">${body}</div></section>`;
 
 export async function render(ctx) {
-  const { root, isCurrent } = ctx;
+  const { root, isCurrent, query } = ctx;
+  const { from, to } = periodFromQuery(query, { from: addDays(todayISO(), -29), to: todayISO() });
   root.innerHTML = loadingHtml();
   let ov;
   let actions;
   try {
-    [ov, actions] = await Promise.all([http('/admin/analysis/overview'), http('/admin/analysis/actions')]);
+    [ov, actions] = await Promise.all([http(`/admin/analysis/overview${qs({ date_from: from, date_to: to })}`), http('/admin/analysis/actions')]);
   } catch (err) {
     root.innerHTML = errorHtml(err);
     root.querySelector('[data-retry]')?.addEventListener('click', () => render(ctx));
@@ -61,7 +63,7 @@ export async function render(ctx) {
   /* 02 Samaradorlik */
   const quality = ov.lab_pass_pct ?? (ov.qc_fail_pct === null ? null : 100 - ov.qc_fail_pct);
   const s02 = `<div class="gauges">
-    ${gauge(ov.plan_pct, { label: 'Reja bajarilishi (30 kun)' })}
+    ${gauge(ov.plan_pct, { label: 'Reja bajarilishi' })}
     ${gauge(ov.on_time_pct, { label: `O‘z vaqtida yetkazish${ov.on_time_n ? ` (${ov.on_time_n} ta)` : ''}` })}
     ${gauge(quality, { label: ov.lab_pass_pct !== null ? `Sifat: laboratoriya (${ov.lab_control_tests} ta)` : 'Sifat: nazoratdan o‘tish' })}
     ${gauge(ov.vehicles.busy_pct, { label: 'Transport bandligi', tone: ov.vehicles.busy_pct === null ? 'none' : 'info' })}
@@ -129,22 +131,23 @@ export async function render(ctx) {
   const facts = [];
   if (v.lead_time_hours !== null) facts.push(`Zayafkadan yetkazishgacha o‘rtacha <strong>${hours(v.lead_time_hours)}</strong>; shundan faqat <strong>${v.efficiency_pct === null ? '—' : `${nf(v.efficiency_pct)}%`}</strong> ish, qolgani kutish.`);
   if (neck) facts.push(`Eng uzoq turadigan bosqich: <strong>${escapeHtml(STAGE_NAME[neck.status])}</strong> (o‘rtacha ${hours(neck.avg_hours)}).`);
-  if (ov.plan_pct !== null) facts.push(`Reja bajarilishi (30 kun): <strong>${nf(ov.plan_pct)}%</strong> (${nf(ov.produced_m3, 0)} / ${nf(ov.plan_m3, 0)} m³).`);
+  if (ov.plan_pct !== null) facts.push(`Reja bajarilishi: <strong>${nf(ov.plan_pct)}%</strong> (${nf(ov.produced_m3, 0)} / ${nf(ov.plan_m3, 0)} m³).`);
   if (ov.on_time_pct !== null) facts.push(`O‘z vaqtida yetkazilgan buyurtmalar: <strong>${nf(ov.on_time_pct)}%</strong>.`);
   if (ov.lab_pass_pct !== null) facts.push(`Laboratoriya (28 kun) bo‘yicha me’yorga mos: <strong>${nf(ov.lab_pass_pct)}%</strong>.`);
-  if (ov.cancel_pct !== null) facts.push(`Oxirgi 30 kunda buyurtmalarning <strong>${nf(ov.cancel_pct)}%</strong> bekor qilingan.`);
+  if (ov.cancel_pct !== null) facts.push(`Tanlangan davrda buyurtmalarning <strong>${nf(ov.cancel_pct)}%</strong> bekor qilingan.`);
   if (ov.stock.low + ov.stock.out > 0) facts.push(`<strong>${ov.stock.low + ov.stock.out} ta</strong> xomashyo minimal qoldiqdan past yoki tugagan.`);
   const overdue = actions.items.filter((a) => a.overdue).length;
   if (overdue) facts.push(`<strong>${overdue} ta</strong> yaxshilash chorasining muddati o‘tgan.`);
   const s10 = facts.length ? `<ul class="facts">${facts.map((f) => `<li>${f}</li>`).join('')}</ul><p class="text-muted">Xulosa avtomatik: faqat bazadagi haqiqiy ma’lumotdan tuziladi. Umumiy «ball» hisoblanmaydi — uni berish uchun asos (maqsad va me’yorlar) hali belgilanmagan.</p>`
     : '<p class="muted">Xulosa uchun hali ma’lumot yo‘q. Buyurtmalar, ishlab chiqarish va laboratoriya yozuvlari kiritilgach bu yerda avtomatik paydo bo‘ladi.</p>';
 
-  root.innerHTML = `<div class="an">
+  root.innerHTML = `<div class="page-actions">${rangeBar({ from, to })}<span class="text-muted">Barcha ko‘rsatkichlar shu davr bo‘yicha; navbat (WIP) — hozirgi holat.</span></div><div class="an">
     ${section('01', 'Qiymat oqimi sharhi', s01)}${section('02', 'Samaradorlik ko‘rsatkichlari', s02)}${section('03', 'Hozirgi holat xaritasi', s03)}
     ${section('05', 'Kelajakdagi holat xaritasi', s05)}${section('06', 'Isrofning 8 turi', s06)}
     ${section('07', 'Takomillashtirish harakatlar rejasi', s07, canManage ? `<button class="btn btn--primary btn--sm" data-add>${icon('i-plus')} Chora qo‘shish</button>` : '')}
     ${section('08', 'Jarayon xaritasi belgilari', s08)}${section('09', 'Nazorat va monitoring', s09)}${section('10', 'Rahbariyat uchun xulosa', s10)}</div>`;
 
+  bindPeriod(root);
   root.querySelector('[data-add]')?.addEventListener('click', () => actionForm(null, reload));
   root.querySelectorAll('tr[data-id]').forEach((row) => {
     const a = actions.items.find((i) => i.id === Number(row.dataset.id));

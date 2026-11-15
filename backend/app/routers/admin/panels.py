@@ -43,10 +43,11 @@ def _day_bounds(start: date, end: date) -> tuple[datetime, datetime]:
 # --- Ishlab chiqarish paneli ----------------------------------------------
 
 @router.get("/production/panel")
-def production_panel(days: int = Query(14, ge=3, le=60), db: Session = Depends(get_db),
-                     _: User = Depends(require(Perm.PRODUCTION_READ))):
+def production_panel(days: int = Query(14, ge=3, le=90), date_: date = Query(alias="date", default_factory=today_local),
+                     db: Session = Depends(get_db), _: User = Depends(require(Perm.PRODUCTION_READ))):
+    """date — hisobot sanasi («bugun» o'rniga): kunlik ko'rsatkich, shu oy va oxirgi N kun grafigi shu sanagacha."""
     tz = local_tz()
-    today = today_local()
+    today = date_
     month_start = today.replace(day=1)
     start = min(today - timedelta(days=days - 1), month_start)
     lo, hi = _day_bounds(start, today)
@@ -174,14 +175,20 @@ def delete_action(action_id: int, db: Session = Depends(get_db), _: User = Depen
 # --- Analiz ----------------------------------------------------------------
 
 @router.get("/analysis/overview")
-def analysis_overview(db: Session = Depends(get_db), _: User = Depends(require(Perm.DASHBOARD))):
+def analysis_overview(date_from: date | None = None, date_to: date | None = None, db: Session = Depends(get_db),
+                      _: User = Depends(require(Perm.DASHBOARD))):
     """Samaradorlik ko'rsatkichlari, hozirgi holat xaritasi, 8 turdagi isrof, monitoring va rahbariyat xulosasi uchun xom raqamlar."""
-    today = today_local()
-    since = datetime.now(local_tz()) - timedelta(days=30)
-    vsm = value_stream(db)
+    end_day = date_to or today_local()
+    start_day = date_from or end_day - timedelta(days=29)
+    if start_day > end_day:
+        raise HTTPException(status_code=422, detail=[{"loc": ["query", "date_to"], "msg": "Davr oxiri boshidan oldin bo‘lishi mumkin emas.", "type": "business_rule"}])
+    tz0 = local_tz()
+    since = datetime.combine(start_day, time.min, tzinfo=tz0)
+    until = datetime.combine(end_day + timedelta(days=1), time.min, tzinfo=tz0)
+    vsm = value_stream(db, start=since, end=until)
 
     orders_30 = db.execute(
-        select(Order.status, func.count()).where(Order.created_at >= since).group_by(Order.status)
+        select(Order.status, func.count()).where(Order.created_at >= since, Order.created_at < until).group_by(Order.status)
     ).all()
     n_orders = sum(n for _, n in orders_30)
     n_cancel = sum(n for s, n in orders_30 if s == S.CANCELLED)
@@ -190,7 +197,7 @@ def analysis_overview(db: Session = Depends(get_db), _: User = Depends(require(P
     delivered = db.execute(
         select(Order.delivery_date, func.max(OrderTrip.delivered_at))
         .join(OrderTrip, OrderTrip.order_id == Order.id)
-        .where(Order.status == S.DELIVERED, Order.created_at >= since, OrderTrip.status == TripStatus.DELIVERED)
+        .where(Order.status == S.DELIVERED, Order.created_at >= since, Order.created_at < until, OrderTrip.status == TripStatus.DELIVERED)
         .group_by(Order.id, Order.delivery_date)
     ).all()
     tz = local_tz()
@@ -199,27 +206,28 @@ def analysis_overview(db: Session = Depends(get_db), _: User = Depends(require(P
 
     plan = db.execute(
         select(func.coalesce(func.sum(ProductionPlan.planned_volume_m3), 0))
-        .where(ProductionPlan.plan_date >= today - timedelta(days=29), ProductionPlan.plan_date <= today, ProductionPlan.status != PlanStatus.CANCELLED)
+        .where(ProductionPlan.plan_date >= start_day, ProductionPlan.plan_date <= end_day, ProductionPlan.status != PlanStatus.CANCELLED)
     ).scalar_one()
     produced = db.execute(
         select(func.coalesce(func.sum(ProductionRecord.produced_volume_m3), 0))
-        .where(ProductionRecord.produced_at >= since, ProductionRecord.qc_status != QcStatus.FAILED)
+        .where(ProductionRecord.produced_at >= since, ProductionRecord.produced_at < until, ProductionRecord.qc_status != QcStatus.FAILED)
     ).scalar_one()
-    failed_qc = db.scalar(select(func.count()).select_from(ProductionRecord).where(ProductionRecord.produced_at >= since, ProductionRecord.qc_status == QcStatus.FAILED)) or 0
-    records = db.scalar(select(func.count()).select_from(ProductionRecord).where(ProductionRecord.produced_at >= since)) or 0
+    failed_qc = db.scalar(select(func.count()).select_from(ProductionRecord).where(ProductionRecord.produced_at >= since, ProductionRecord.produced_at < until, ProductionRecord.qc_status == QcStatus.FAILED)) or 0
+    records = db.scalar(select(func.count()).select_from(ProductionRecord).where(ProductionRecord.produced_at >= since, ProductionRecord.produced_at < until)) or 0
 
     vehicles = list(db.scalars(select(Vehicle).where(Vehicle.is_active.is_(True))))
     busy = sum(1 for v in vehicles if v.status == VehicleStatus.BUSY)
     repair = sum(1 for v in vehicles if v.status == VehicleStatus.REPAIR)
     on_road = db.scalar(select(func.count()).select_from(OrderTrip).where(OrderTrip.status == TripStatus.EN_ROUTE)) or 0
 
-    lab = lab_summary(None, None, db, _)
+    lab = lab_summary(start_day, end_day, db, _)
     rows = wh.material_rows(db, warehouse_id=None, date_from=None, date_to=None)
     active_mats = [r for r in rows if r["is_active"]]
     gauges = [r for r in active_mats if r["category"] in ("cement", "sand", "gravel", "crushed_stone")]
 
     stages = {s["status"]: s for s in vsm["stages"]}
     return {
+        "period_from": start_day.isoformat(), "period_to": end_day.isoformat(),
         "vsm": vsm,
         "orders_30d": n_orders,
         "cancel_pct": round(100 * n_cancel / n_orders, 1) if n_orders else None,

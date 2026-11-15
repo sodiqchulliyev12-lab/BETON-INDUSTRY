@@ -37,8 +37,10 @@ def _avg(values: list[float]) -> float | None:
     return round(sum(values) / len(values), 2) if values else None
 
 
-def value_stream(db: Session, days: int = 90) -> dict[str, Any]:
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+def value_stream(db: Session, days: int = 90, start: datetime | None = None, end: datetime | None = None) -> dict[str, Any]:
+    """days — oxirgi N kun; start/end berilsa — shu davrda yaratilgan buyurtmalar (end kiritilmaydi)."""
+    since = start or datetime.now(timezone.utc) - timedelta(days=days)
+    until = end or datetime.now(timezone.utc) + timedelta(days=1)
 
     # Hozirgi navbat — barcha ochiq buyurtmalar (davrdan qat'i nazar)
     wip_count = dict(db.execute(select(Order.status, func.count()).group_by(Order.status)).all())
@@ -53,7 +55,7 @@ def value_stream(db: Session, days: int = 90) -> dict[str, Any]:
     history = db.execute(
         select(OrderStatusHistory.order_id, OrderStatusHistory.to_status, OrderStatusHistory.created_at)
         .join(Order, Order.id == OrderStatusHistory.order_id)
-        .where(Order.created_at >= since)
+        .where(Order.created_at >= since, Order.created_at < until)
         .order_by(OrderStatusHistory.order_id, OrderStatusHistory.id)
     ).all()
     by_order: dict[int, list[tuple[OrderStatus, datetime]]] = defaultdict(list)
@@ -98,7 +100,7 @@ def value_stream(db: Session, days: int = 90) -> dict[str, Any]:
     lead = _avg(lead_times)
     work = _avg(work_times)
     return {
-        "period_days": days,
+        "period_days": (until - since).days if start else days,
         "has_data": bool(by_order),
         "stages": stages,
         "bottleneck": bottleneck,

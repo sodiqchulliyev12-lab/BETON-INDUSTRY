@@ -80,6 +80,7 @@ class VehicleIn(InputModel):
     notes: Annotated[str | None, Field(default=None, max_length=1000)]
     inspection_date: date | None = None
     inspection_due: date | None = None
+    fuel_type: Literal["gas", "diesel", "petrol"] | None = None
 
     @model_validator(mode="after")
     def _inspection(self):
@@ -125,6 +126,7 @@ class VehicleOut(OrmModel):
     inspection_date: date | None = None
     inspection_due: date | None = None
     inspection_status: str = "unknown"  # ok | soon | overdue | unknown
+    fuel_type: str | None = None
     active_trips: int = 0
     trips_count: int = 0
     created_at: datetime

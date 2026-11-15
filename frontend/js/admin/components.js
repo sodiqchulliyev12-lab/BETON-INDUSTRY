@@ -74,12 +74,14 @@ export const VEHICLE_KIND = { mixer: 'Mikser', pump: 'Beton nasosi', other: 'Yuk
 export const VEHICLE_KIND_TITLE = { mixer: 'Mikserlar', pump: 'Beton nasoslari', other: 'Yuk avtomobillari', car: 'Yengil avtomobillar' };
 export const KIND_ROUTE = { mixer: 'mixers', pump: 'pumps', other: 'others', car: 'cars' };
 export const KIND_PHOTO = {
-  mixer: '../assets/img/mixer-photo.webp?v=1', pump: '../assets/img/pump-truck.webp?v=2',
-  other: '../assets/img/yuk-avtomobil.webp?v=1', car: '../assets/img/car-photo.webp?v=1',
+  mixer: '../assets/img/mixer-photo.webp?v=2', pump: '../assets/img/pump-truck.webp?v=3',
+  other: '../assets/img/yuk-avtomobil.webp?v=2', car: '../assets/img/car-photo.webp?v=2',
 };
 export const EXPENSE_LABEL = {
   fuel: 'Yoqilg‘i', parts: 'Zapchast', repair: 'Ta’mir', tires: 'Shina', insurance: 'Sug‘urta', other: 'Ko‘zda tutilmagan / boshqa',
 };
+export const FUEL = { gas: 'Gaz', diesel: 'Solyarka (dizel)', petrol: 'Benzin', unknown: 'Turi kiritilmagan' };
+export const FUEL_UNIT = { gas: 'm³', diesel: 'litr', petrol: 'litr', unknown: '' };
 export const INSPECTION = { ok: 'Muddati bor', soon: 'Yaqinlashdi', overdue: 'Muddati o‘tgan', unknown: 'Kiritilmagan' };
 
 /** Egalik nomi turga qarab: nasosda «Soatbay», boshqalarda «Reys bay» */
