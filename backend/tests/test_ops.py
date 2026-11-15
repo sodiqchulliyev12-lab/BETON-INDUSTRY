@@ -48,6 +48,10 @@ def test_fleet_planning(client, login, make_product, tomorrow):
     client.post("/api/v1/public/orders", json=order_payload(p.id, tomorrow, volume_m3=16))
     plan = client.get(f"{API}/fleet/planning?date={tomorrow}", headers=h).json()
     assert len(plan["orders"]) == 1 and plan["orders"][0]["unassigned_m3"] == 16 and plan["unassigned_total_m3"] == 16
+    mon = client.get(f"{API}/fleet/monitor?date={tomorrow}&kind=mixer&ownership=own&page=1", headers=h).json()
+    assert mon["total"] == 0 and mon["items"] == []
+    summ = client.get(f"{API}/fleet/summary", headers=h).json()
+    assert summ["hourly"] == {} and "fuel_cost" in summ["daily"][0] and summ["ready_by_ownership"]["own"]["mixer"] == 0
 
 
 # --- Ombor -----------------------------------------------------------------

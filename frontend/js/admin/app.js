@@ -29,7 +29,7 @@ const NAV = [
   ] },
   { group: 'Operatsiyalar', items: [
     { route: 'transport', label: 'Transport', icon: 'i-truck', perm: PERM.FLEET_READ, children: [
-      { route: 'vehicles', label: 'Transportlar' },
+      { route: 'vehicles', label: 'Transportlar', view: 'transport' },
       { route: 'mixers', label: 'Mikserlar', view: 'vehicles', kind: 'mixer' },
       { route: 'pumps', label: 'Beton nasoslari', view: 'vehicles', kind: 'pump' },
       { route: 'others', label: 'Boshqa transport', view: 'vehicles', kind: 'other' },

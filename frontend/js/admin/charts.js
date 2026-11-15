@@ -103,3 +103,39 @@ export function tank(pct, { label = '', note = '' } = {}) {
       <rect class="tank__fill" x="4" y="${y.toFixed(1)}" width="22" height="${(44 - y).toFixed(1)}" rx="3"/></svg>
     <strong>${has ? `${fmt(pct, 0)}%` : '—'}</strong><span>${escapeHtml(label)}</span>${note ? `<small>${escapeHtml(note)}</small>` : ''}</div>`;
 }
+
+/** Ko'p chiziqli grafik (silliq): series [{label, cls, points: [[x, y], ...]}], xs — x o'qi qiymatlari */
+export function lineChart(series, xs, { unit = '', height = 220, xLabel = (x) => x } = {}) {
+  const W = 720;
+  const pad = { top: 10, right: 12, bottom: 26, left: 40 };
+  const innerW = W - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+  const max = niceMax(Math.max(...series.flatMap((s) => s.points.map((p) => p[1])), 0));
+  const x0 = xs[0];
+  const span = Math.max(xs.at(-1) - x0, 1);
+  const px = (x) => pad.left + ((x - x0) / span) * innerW;
+  const py = (y) => pad.top + innerH * (1 - y / max);
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => `<line class="grid-line" x1="${pad.left}" x2="${W - pad.right}" y1="${pad.top + innerH * (1 - t)}" y2="${pad.top + innerH * (1 - t)}"/>
+    <text x="${pad.left - 8}" y="${pad.top + innerH * (1 - t) + 4}" text-anchor="end">${fmt(max * t, 0)}</text>`).join('');
+  const smooth = (pts) => pts.map((p, i) => {
+    if (i === 0) return `M${px(p[0]).toFixed(1)} ${py(p[1]).toFixed(1)}`;
+    const q = pts[i - 1];
+    const cx = (px(q[0]) + px(p[0])) / 2;
+    return `C${cx.toFixed(1)} ${py(q[1]).toFixed(1)} ${cx.toFixed(1)} ${py(p[1]).toFixed(1)} ${px(p[0]).toFixed(1)} ${py(p[1]).toFixed(1)}`;
+  }).join(' ');
+  const lines = series.map((s) => {
+    const full = xs.map((x) => [x, (s.points.find((p) => p[0] === x) || [x, 0])[1]]);
+    const d = smooth(full);
+    return `<path class="area ${s.cls}" d="${d} L${px(xs.at(-1)).toFixed(1)} ${py(0)} L${px(x0).toFixed(1)} ${py(0)} Z"/><path class="line ${s.cls}" d="${d}"><title>${escapeHtml(s.label)}</title></path>`;
+  }).join('');
+  const labels = xs.map((x, i) => (i % Math.ceil(xs.length / 10) === 0 ? `<text x="${px(x).toFixed(1)}" y="${height - 6}" text-anchor="middle">${escapeHtml(String(xLabel(x)))}</text>` : '')).join('');
+  const legend = series.map((s) => `<span class="legend__item"><i class="legend__dot ${s.cls}"></i>${escapeHtml(s.label)}</span>`).join('');
+  return `<div class="legend">${legend}</div><svg class="chart" viewBox="0 0 ${W} ${height}" role="img" aria-label="${escapeHtml(series.map((s) => s.label).join(', '))} ${escapeHtml(unit)}">${grid}${lines}${labels}</svg>`;
+}
+
+/** Kichik halqa (foiz) */
+export function ring(pct, label = '') {
+  const v = pct === null || pct === undefined ? 0 : Math.min(100, Math.max(0, pct));
+  return `<div class="ring"><svg viewBox="0 0 42 42" aria-hidden="true"><circle class="ring__bg" cx="21" cy="21" r="16" pathLength="100"/><circle class="ring__fg" cx="21" cy="21" r="16" pathLength="100" stroke-dasharray="${v.toFixed(1)} 100"/></svg>
+    <span><b>${pct === null || pct === undefined ? '—' : `${fmt(pct, 0)}%`}</b><small>${escapeHtml(label)}</small></span></div>`;
+}

@@ -19,7 +19,7 @@ from app.models.fleet import EXPENSE_CATEGORIES
 from app.permissions import Perm
 from app.schemas.common import InputModel, clean_text
 from app.services.fleet import ACTIVE_TRIP, order_volumes
-from app.utils.timezone import today_local
+from app.utils.timezone import local_tz, today_local
 
 router = APIRouter(tags=["Admin: transport bo‘limi"])
 T = TripStatus
@@ -68,7 +68,26 @@ def fleet_summary(days: int = Query(14, ge=3, le=60), db: Session = Depends(get_
         .where(Order.delivery_date == today, OrderTrip.status != T.CANCELLED)
     ).one()
 
+    # Bugungi reyslar soat bo'yicha: bo'lim va egalik guruhlari (yuklangan vaqt, bo'lmasa yaratilgan vaqt)
+    tz = local_tz()
+    hourly: dict[str, dict[int, int]] = {}
+    for at, kind, own in db.execute(
+        select(func.coalesce(OrderTrip.loaded_at, OrderTrip.created_at), Vehicle.kind, Vehicle.ownership)
+        .join(Vehicle, Vehicle.id == OrderTrip.vehicle_id).join(Order, Order.id == OrderTrip.order_id)
+        .where(Order.delivery_date == today, OrderTrip.status != T.CANCELLED)
+    ):
+        group = f"{kind}_{'own' if own.value == 'own' else 'hired'}"
+        h = at.astimezone(tz).hour
+        hourly.setdefault(group, {})[h] = hourly.setdefault(group, {}).get(h, 0) + 1
+    fuel = dict(db.execute(
+        select(VehicleExpense.expense_date, func.sum(VehicleExpense.amount))
+        .where(VehicleExpense.expense_date >= start, VehicleExpense.category == "fuel").group_by(VehicleExpense.expense_date)
+    ).all())
+    for d in daily:
+        d["fuel_cost"] = _f(fuel.get(date.fromisoformat(d["date"])))
+
     return {
+        "hourly": {g: [[h, n] for h, n in sorted(v.items())] for g, v in hourly.items()},
         "total": len(vehicles),
         "free": count(lambda v: v.status == VehicleStatus.FREE),
         "busy": count(lambda v: v.status == VehicleStatus.BUSY),
@@ -83,7 +102,44 @@ def fleet_summary(days: int = Query(14, ge=3, le=60), db: Session = Depends(get_
         "by_kind": {k: count(lambda v, k=k: v.kind == k) for k in ("mixer", "pump", "other")},
         "by_ownership": {o: {k: count(lambda v, o=o, k=k: v.ownership.value == o and v.kind == k)
                              for k in ("mixer", "pump", "other")} for o in ("own", "rented", "per_trip")},
+        # Ta'mirda bo'lmagan (ishga yaroqli) transport soni — "faol %" uchun
+        "ready_by_ownership": {o: {k: count(lambda v, o=o, k=k: v.ownership.value == o and v.kind == k and v.status != VehicleStatus.REPAIR)
+                                   for k in ("mixer", "pump", "other")} for o in ("own", "rented", "per_trip")},
         "daily": daily,
+    }
+
+
+# --- Reyslar monitoringi (filtrlar bilan) ----------------------------------
+
+@router.get("/fleet/monitor")
+def fleet_monitor(date_: date = Query(alias="date", default_factory=today_local), kind: str | None = None,
+                  ownership: str | None = None, vehicle_status: str | None = None, driver_id: int | None = None,
+                  page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=50), db: Session = Depends(get_db),
+                  _: User = Depends(require(Perm.FLEET_READ))):
+    q = (select(OrderTrip).join(Vehicle, Vehicle.id == OrderTrip.vehicle_id).join(Order, Order.id == OrderTrip.order_id)
+         .where(Order.delivery_date == date_, OrderTrip.status != T.CANCELLED))
+    if kind in ("mixer", "pump", "other"):
+        q = q.where(Vehicle.kind == kind)
+    if ownership in ("own", "rented", "per_trip"):
+        q = q.where(Vehicle.ownership == ownership)
+    if vehicle_status in ("free", "busy", "repair"):
+        q = q.where(Vehicle.status == vehicle_status)
+    if driver_id:
+        q = q.where(OrderTrip.driver_id == driver_id)
+    total = db.scalar(select(func.count()).select_from(q.subquery())) or 0
+    trips = list(db.scalars(q.order_by(OrderTrip.created_at.desc(), OrderTrip.id.desc()).limit(page_size).offset((page - 1) * page_size)))
+    order_ids = {t.order_id for t in trips}
+    orders = {o.id: o for o in db.scalars(select(Order).where(Order.id.in_(order_ids)))} if order_ids else {}
+    names = dict(db.execute(select(Customer.id, Customer.full_name).where(Customer.id.in_({o.customer_id for o in orders.values()}))).all()) if orders else {}
+    return {
+        "total": total, "page": page, "page_size": page_size,
+        "items": [{
+            "id": t.id, "order_id": t.order_id, "order_number": orders[t.order_id].order_number, "trip_no": t.trip_no,
+            "plate_number": t.vehicle.plate_number, "vehicle_type": t.vehicle.vehicle_type, "kind": t.vehicle.kind,
+            "ownership": t.vehicle.ownership.value, "driver": t.driver.full_name if t.driver else None,
+            "customer": names.get(orders[t.order_id].customer_id), "address": orders[t.order_id].delivery_address,
+            "volume_m3": _f(t.volume_m3), "status": t.status.value,
+        } for t in trips],
     }
 
 

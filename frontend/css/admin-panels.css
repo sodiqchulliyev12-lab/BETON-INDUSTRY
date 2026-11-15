@@ -196,3 +196,30 @@
 @media (max-width: 720px) {
   .stage-arrow, .an-arrow { display: none; }
 }
+
+/* --- Transport dashboard --- */
+.line { fill: none; stroke: var(--fill); stroke-width: 2.4; stroke-linecap: round; }
+.area { fill: var(--fill); opacity: 0.1; stroke: none; }
+.ring { position: relative; display: inline-grid; place-items: center; width: 64px; height: 64px; flex: none; }
+.ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.ring__bg, .ring__fg { fill: none; stroke-width: 4; }
+.ring__bg { stroke: var(--c-gray-200); }
+.ring__fg { stroke: var(--c-info); stroke-linecap: round; }
+.ring span { display: grid; text-align: center; line-height: 1.05; }
+.ring b { font-size: 0.8rem; }
+.ring small { font-size: 0.55rem; color: var(--c-text-muted); }
+.stat--row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.stat--danger .stat__value { color: var(--c-danger); }
+.tr-head { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-5); }
+.tr-head .btn { white-space: nowrap; }
+.fleet-card { display: grid; gap: var(--sp-3); }
+.fleet-card__row { display: grid; grid-template-columns: minmax(130px, 1fr) 1fr; gap: var(--sp-4); align-items: center; padding: var(--sp-3) 0; border-bottom: 1px solid var(--c-gray-200); }
+.fleet-card__row:last-child { border-bottom: 0; }
+.fleet-card__img { width: 100%; max-width: 230px; height: auto; display: block; }
+.fleet-card__cap { display: block; text-align: center; font-weight: 700; font-size: var(--fs-sm); }
+.own-list { display: grid; gap: 6px; font-size: var(--fs-sm); }
+.own-list > div { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-bottom: 5px; border-bottom: 1px solid var(--c-gray-200); }
+.own-list > div:last-child { border-bottom: 0; }
+.own-list b { font-family: var(--f-display); font-size: 1.35rem; }
+.own-list .tag { font-size: var(--fs-xs); color: var(--c-success); font-weight: 700; }
+@media (max-width: 720px) { .fleet-card__row { grid-template-columns: 1fr; } }
