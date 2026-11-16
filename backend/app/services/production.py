@@ -7,7 +7,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session, aliased, selectinload
 
 from app.models import (
     ConcreteProduct, Customer, Driver, Material, Order, OrderItem, OrderTrip, ProductionPlan, ProductionRecord, StockMovement,
@@ -15,7 +15,7 @@ from app.models import (
 )
 from app.models.enums import OrderStatus, PlanStatus, QcStatus, TripStatus
 from app.schemas.admin_production import (
-    PlanIn, PlanOut, ProductDaySummary, ProductionSummary, QcIn, RecordIn, RecordOut,
+    PlanIn, PlanOut, ProductDaySummary, ProductionSummary, QcIn, RecordIn, RecordOut, RecordUpdate,
 )
 from app.services.orders import OrderError
 from app.utils.timezone import local_tz
@@ -126,7 +126,12 @@ def delete_plan(db: Session, plan: ProductionPlan) -> None:
 # --- Ishlab chiqarish yozuvlari va sifat nazorati -------------------------
 
 def list_records(db: Session, day: date) -> list[RecordOut]:
-    start, end = _day_range(day)
+    return list_records_range(db, day, day)
+
+
+def list_records_range(db: Session, date_from: date, date_to: date) -> list[RecordOut]:
+    start, _ = _day_range(date_from)
+    _, end = _day_range(date_to)
     creator, inspector = aliased(User), aliased(User)
     rows = db.execute(
         select(ProductionRecord, ConcreteProduct.grade_class, ConcreteProduct.name, Order.order_number, creator.full_name, inspector.full_name)
@@ -139,12 +144,14 @@ def list_records(db: Session, day: date) -> list[RecordOut]:
     ).all()
     customers = {c.id: (c.company_name or c.full_name) for c in db.scalars(select(Customer).where(Customer.id.in_({r.customer_id for r, *_ in rows if r.customer_id})))} if rows else {}
     plates = dict(db.execute(select(Vehicle.id, Vehicle.plate_number).where(Vehicle.id.in_({r.vehicle_id for r, *_ in rows if r.vehicle_id}))).all()) if rows else {}
+    drivers = dict(db.execute(select(Driver.id, Driver.full_name).where(Driver.id.in_({r.driver_id for r, *_ in rows if r.driver_id}))).all()) if rows else {}
     return [
         RecordOut(
             id=r.id, plan_id=r.plan_id, order_id=r.order_id, order_number=number, product_id=r.product_id,
             grade_class=grade, product_name=name, batch_number=r.batch_number, produced_volume_m3=r.produced_volume_m3,
             customer_id=r.customer_id, customer_name=customers.get(r.customer_id), vehicle_id=r.vehicle_id,
-            plate_number=plates.get(r.vehicle_id), waybill_no=r.waybill_no,
+            plate_number=plates.get(r.vehicle_id), waybill_no=r.waybill_no, driver_id=r.driver_id, driver_name=drivers.get(r.driver_id),
+            operator_name=r.operator_name, operator_phone=r.operator_phone, notes=r.notes,
             produced_at=r.produced_at, qc_status=r.qc_status, qc_notes=r.qc_notes, qc_by=qc_name, qc_at=r.qc_at,
             created_by=author,
         )
@@ -174,6 +181,8 @@ def create_record(db: Session, data: RecordIn, user: User) -> ProductionRecord:
         veh = db.get(Vehicle, data.vehicle_id)
         if veh is None or veh.kind != "mixer":
             raise OrderError("Tashuvchi mikserni ro‘yxatdan tanlang.", field="vehicle_id")
+    if data.driver_id is not None and db.get(Driver, data.driver_id) is None:
+        raise OrderError("Haydovchi topilmadi.", field="driver_id")
     produced_at = data.produced_at or datetime.now(UTC)
     if produced_at.tzinfo is None:
         produced_at = produced_at.replace(tzinfo=local_tz())
@@ -187,6 +196,10 @@ def create_record(db: Session, data: RecordIn, user: User) -> ProductionRecord:
         batch_number=data.batch_number,
         customer_id=customer_id,
         vehicle_id=data.vehicle_id,
+        driver_id=data.driver_id,
+        operator_name=data.operator_name or user.full_name,
+        operator_phone=data.operator_phone,
+        notes=data.notes,
         produced_volume_m3=data.produced_volume_m3,
         produced_at=produced_at,
         created_by_id=user.id,
@@ -232,13 +245,16 @@ def waybill(db: Session, record: ProductionRecord) -> dict:
     order = db.get(Order, record.order_id) if record.order_id else None
     customer = db.get(Customer, record.customer_id) if record.customer_id else None
     vehicle = db.get(Vehicle, record.vehicle_id) if record.vehicle_id else None
-    driver_name = None
-    if vehicle is not None:
+    driver_name = driver_phone = None
+    if record.driver_id:
+        d0 = db.get(Driver, record.driver_id)
+        driver_name, driver_phone = (d0.full_name, d0.phone) if d0 else (None, None)
+    if vehicle is not None and not driver_name:
         trip_driver = None
         if order is not None:
             trip_driver = db.scalar(select(OrderTrip.driver_id).where(OrderTrip.order_id == order.id, OrderTrip.vehicle_id == vehicle.id, OrderTrip.driver_id.is_not(None)).limit(1))
         driver = db.get(Driver, trip_driver or vehicle.default_driver_id) if (trip_driver or vehicle.default_driver_id) else None
-        driver_name = driver.full_name if driver else None
+        driver_name, driver_phone = (driver.full_name, driver.phone) if driver else (None, None)
     used = db.execute(
         select(Material.name, Material.unit, func.sum(-StockMovement.quantity))
         .join(Material, Material.id == StockMovement.material_id)
@@ -252,6 +268,7 @@ def waybill(db: Session, record: ProductionRecord) -> dict:
         "address": order.delivery_address if order and order.delivery_required else None,
         "product": product.name, "grade": product.grade_class, "volume_m3": float(record.produced_volume_m3), "batch_number": record.batch_number,
         "vehicle": vehicle.plate_number if vehicle else None, "vehicle_type": vehicle.vehicle_type if vehicle else None, "driver": driver_name,
+        "driver_phone": driver_phone, "operator": record.operator_name, "operator_phone": record.operator_phone, "notes": record.notes,
         "qc_status": record.qc_status.value if hasattr(record.qc_status, "value") else str(record.qc_status),
         "materials": [{"name": n, "unit": u, "quantity": float(q)} for n, u, q in used],
     }
@@ -269,6 +286,61 @@ def set_qc(db: Session, record: ProductionRecord, data: QcIn, user: User) -> Pro
     db.commit()
     db.refresh(record)
     return record
+
+
+def update_record(db: Session, record: ProductionRecord, data: RecordUpdate, user: User) -> ProductionRecord:
+    """Xato kiritilgan yozuvni tuzatadi; ombordan avtomat chiqim yangi hajmga qarab qayta hisoblanadi."""
+    if record.qc_status != QcStatus.PENDING:
+        raise OrderError("Sifat nazoratidan o‘tgan yozuvni o‘zgartirib bo‘lmaydi.")
+    if data.vehicle_id is not None:
+        veh = db.get(Vehicle, data.vehicle_id)
+        if veh is None or veh.kind != "mixer":
+            raise OrderError("Tashuvchi mikserni ro‘yxatdan tanlang.", field="vehicle_id")
+    if data.driver_id is not None and db.get(Driver, data.driver_id) is None:
+        raise OrderError("Haydovchi topilmadi.", field="driver_id")
+    record.produced_volume_m3 = data.produced_volume_m3
+    record.vehicle_id = data.vehicle_id
+    record.driver_id = data.driver_id
+    record.operator_name = data.operator_name
+    record.operator_phone = data.operator_phone
+    record.notes = data.notes
+    for mv in db.scalars(select(StockMovement).where(StockMovement.production_record_id == record.id)):
+        db.delete(mv)
+    db.flush()
+    consume_materials(db, record, user)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def orders_for_production(db: Session, state: str) -> list[dict]:
+    """Ishlab chiqarish uchun buyurtmalar (zayavkalar): yopilmagan yoki yakunlangan; har bir markada qancha ishlab chiqarilgani."""
+    stmt = select(Order).options(selectinload(Order.items), selectinload(Order.customer))
+    if state == "closed":
+        stmt = stmt.where(Order.status == OrderStatus.DELIVERED).order_by(Order.delivery_date.desc(), Order.id.desc())
+    else:
+        stmt = stmt.where(Order.status.notin_((OrderStatus.DELIVERED, OrderStatus.CANCELLED))).order_by(Order.delivery_date, Order.delivery_time, Order.id)
+    orders = list(db.scalars(stmt.limit(200)))
+    ids = [o.id for o in orders]
+    made: dict[tuple[int, int], Decimal] = {}
+    if ids:
+        for oid, pid, vol in db.execute(
+            select(ProductionRecord.order_id, ProductionRecord.product_id, func.sum(ProductionRecord.produced_volume_m3))
+            .where(ProductionRecord.order_id.in_(ids), ProductionRecord.qc_status != QcStatus.FAILED).group_by(ProductionRecord.order_id, ProductionRecord.product_id)
+        ):
+            made[(oid, pid)] = vol
+    out = []
+    for o in orders:
+        items = [{"product_id": i.product_id, "name": i.product_name, "grade": i.grade_class, "volume_m3": float(i.volume_m3),
+                  "produced_m3": float(made.get((o.id, i.product_id), 0))} for i in o.items]
+        out.append({
+            "id": o.id, "order_number": o.order_number, "status": o.status.value, "customer_id": o.customer_id,
+            "customer": o.customer.company_name or o.customer.full_name, "phone": o.customer.phone,
+            "address": o.delivery_address if o.delivery_required else None, "delivery_date": o.delivery_date.isoformat(),
+            "delivery_time": o.delivery_time.strftime("%H:%M") if o.delivery_time else None, "items": items,
+            "volume_m3": round(sum(i["volume_m3"] for i in items), 2), "produced_m3": round(sum(i["produced_m3"] for i in items), 2),
+        })
+    return out
 
 
 def delete_record(db: Session, record: ProductionRecord) -> None:

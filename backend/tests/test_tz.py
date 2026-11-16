@@ -201,3 +201,31 @@ def test_admin_order_price_and_counts(client, login, make_product):
     done = client.patch(f"{API}/orders/{open_['id']}/items/{item}", headers=h, json={"unit_price": 600000}).json()
     assert done["concrete_total"] == 6000000
     assert client.get(f"{API}/orders?price=missing", headers=h).json()["total"] == 0
+
+
+def test_production_orders_edit_and_driver(client, setup, login, db):
+    admin = login("admin")
+    prod = login("production", username="usta")
+    oid = setup["order_id"]
+    mixer, drv = setup["own"], setup["driver"]
+    open_ = client.get(f"{API}/production/orders?state=open", headers=prod).json()
+    assert [o["id"] for o in open_] == [oid] and open_[0]["items"][0]["produced_m3"] == 0 and open_[0]["volume_m3"] == 20
+    assert client.get(f"{API}/production/orders?state=closed", headers=prod).json() == []
+    pid = open_[0]["items"][0]["product_id"]
+    r = client.post(f"{API}/production/records", headers=prod, json={
+        "order_id": oid, "product_id": pid, "produced_volume_m3": 8, "vehicle_id": mixer["id"], "driver_id": drv["id"],
+        "operator_phone": "90 111 22 33", "notes": "Konus 12 sm"})
+    assert r.status_code == 201, r.text
+    rec = r.json()
+    assert rec["driver_name"] == "Haydovchi Bir" and rec["operator_name"] and rec["notes"] == "Konus 12 sm"
+    assert client.get(f"{API}/production/orders?state=open", headers=prod).json()[0]["items"][0]["produced_m3"] == 8
+    wb = client.get(f"{API}/production/records/{rec['id']}/waybill", headers=prod).json()
+    assert wb["driver"] == "Haydovchi Bir" and wb["driver_phone"] and wb["operator_phone"] == "90 111 22 33" and wb["notes"] == "Konus 12 sm"
+    # tuzatish
+    up = client.put(f"{API}/production/records/{rec['id']}", headers=prod, json={"produced_volume_m3": 6, "vehicle_id": mixer["id"], "driver_id": drv["id"], "notes": "Tuzatildi"})
+    assert up.status_code == 200 and up.json()["produced_volume_m3"] == 6 and up.json()["notes"] == "Tuzatildi"
+    assert client.get(f"{API}/production/records?date_from={day(-3)}&date_to={day()}", headers=prod).json()[0]["id"] == rec["id"]
+    assert client.get(f"{API}/production/records?date_from={day()}&date_to={day(-3)}", headers=prod).status_code == 422
+    # sifat nazoratidan keyin o'zgartirib bo'lmaydi
+    client.post(f"{API}/production/records/{rec['id']}/qc", headers=prod, json={"qc_status": "passed"})
+    assert client.put(f"{API}/production/records/{rec['id']}", headers=prod, json={"produced_volume_m3": 5}).status_code == 422

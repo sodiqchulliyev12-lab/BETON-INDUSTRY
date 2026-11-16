@@ -8,7 +8,9 @@ import { setQuery } from '../app.js';
 import { bindPeriod, dayBar } from '../period.js';
 import { todayISO } from '../../validators.js';
 import { donut, groupedBars } from '../charts.js';
-import { emptyRow, errorHtml, escapeHtml, fmtDate, icon, loadingHtml } from '../components.js';
+import { session } from '../auth.js';
+import { openRecordForm } from './production.js';
+import { PERM, emptyRow, errorHtml, escapeHtml, fmtDate, icon, loadingHtml } from '../components.js';
 
 const nf = (v, d = 1) => formatNumber(v || 0, d);
 const stat = ({ label, value, hint = '', tone = '' }) => `<div class="stat${tone ? ` stat--${tone}` : ''}"><span class="stat__label">${escapeHtml(label)}</span><span class="stat__value">${value}</span>${hint ? `<span class="stat__hint">${hint}</span>` : ''}</div>`;
@@ -34,7 +36,7 @@ export async function render(ctx) {
   root.innerHTML = `
     <div class="page-actions">${dayBar({ date: day, label: 'Sana' })}
       <select class="select" id="pDays" aria-label="Grafik davri">${[7, 14, 30, 60, 90].map((n) => `<option value="${n}" ${n === days ? 'selected' : ''}>Grafik: oxirgi ${n} kun</option>`).join('')}</select><span class="page-actions__spacer"></span>
-      <a class="btn btn--outline" href="#/production">Reja va yozuvlar →</a></div>
+      ${session.can(PERM.PRODUCTION_MANAGE) ? `<button type="button" class="btn btn--primary" data-add-record>${icon('i-plus')} Ishlab chiqarildi</button>` : ''}</div>
     <div class="stats">
       ${stat({ label: day === todayISO() ? 'Bugungi ishlab chiqarish' : `Ishlab chiqarish (${fmtDate(day).slice(0, 5)})`, value: m3(p.today_m3), hint: p.plan_today_m3 ? `Reja: ${nf(p.plan_today_m3)} m³` : 'Shu kunga reja yo‘q', tone: 'accent' })}
       ${stat({ label: `Oylik ishlab chiqarish (${fmtDate(day).slice(3)})`, value: m3(p.month_m3), tone: 'info' })}
@@ -59,5 +61,6 @@ export async function render(ctx) {
         <td class="num ${c.diff_pct > 3 ? 'text-danger strong' : ''}">${c.diff_pct === null ? '—' : `${c.diff_pct > 0 ? '+' : ''}${nf(c.diff_pct, 1)}%`}</td></tr>`).join('')
     : emptyRow(5, 'Sarf ma’lumoti yo‘q: omborda «Ishlab chiqarishga berish» yozing va materialga me’yor kiriting.')}</tbody></table></div></section>`;
   bindPeriod(root);
+  root.querySelector('[data-add-record]')?.addEventListener('click', () => openRecordForm({ onSaved: () => render(ctx) }));
   root.querySelector('#pDays').addEventListener('change', (e) => setQuery({ days: e.target.value }));
 }

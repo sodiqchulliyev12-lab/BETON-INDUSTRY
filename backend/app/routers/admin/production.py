@@ -8,7 +8,7 @@ from app.database import get_db
 from app.deps import require
 from app.models import User
 from app.permissions import Perm
-from app.schemas.admin_production import PlanIn, PlanOut, ProductionSummary, QcIn, RecordIn, RecordOut
+from app.schemas.admin_production import PlanIn, PlanOut, ProductionSummary, QcIn, RecordIn, RecordOut, RecordUpdate
 from app.services import production
 from app.utils.timezone import today_local
 
@@ -72,9 +72,22 @@ def delete_plan(plan_id: int, db: Session = Depends(get_db), _: User = Depends(r
 @router.get("/records", response_model=list[RecordOut])
 def list_records(
     db: Session = Depends(get_db), _: User = Depends(require(Perm.PRODUCTION_READ)),
-    day: Annotated[date | None, Query(alias="date")] = None,
+    day: Annotated[date | None, Query(alias="date")] = None, date_from: date | None = None, date_to: date | None = None,
 ):
+    if date_from or date_to:
+        start = date_from or date_to
+        end = date_to or date_from
+        if end < start or end - start > timedelta(days=400):
+            raise HTTPException(status_code=422, detail="Sana oralig‘i noto‘g‘ri.")
+        return production.list_records_range(db, start, end)
     return production.list_records(db, day or today_local())
+
+
+@router.get("/orders")
+def production_orders(state: Annotated[str, Query(pattern="^(open|closed)$")] = "open", db: Session = Depends(get_db),
+                      _: User = Depends(require(Perm.PRODUCTION_READ))):
+    """Ishlab chiqarish uchun buyurtmalar: yopilmagan (ochiq zayavkalar) yoki yakunlangan."""
+    return production.orders_for_production(db, state)
 
 
 def _record_out(db: Session, record) -> RecordOut:
@@ -97,6 +110,11 @@ def create_record(payload: RecordIn, db: Session = Depends(get_db), user: User =
 def record_waybill(record_id: int, db: Session = Depends(get_db), _: User = Depends(require(Perm.PRODUCTION_READ))):
     """Nakladnoy (chop etish uchun) — ishlab chiqarish yozuvidan avtomat shakllanadi."""
     return production.waybill(db, _record(db, record_id))
+
+
+@router.put("/records/{record_id}", response_model=RecordOut)
+def update_record(record_id: int, payload: RecordUpdate, db: Session = Depends(get_db), user: User = Depends(require(Perm.PRODUCTION_MANAGE))):
+    return _record_out(db, production.update_record(db, _record(db, record_id), payload, user))
 
 
 @router.post("/records/{record_id}/qc", response_model=RecordOut)

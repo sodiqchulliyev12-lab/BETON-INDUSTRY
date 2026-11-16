@@ -53,7 +53,10 @@ const NAV = [
       { route: 'warehouses', label: 'Omborlar', view: 'warehouse' },
     ] },
     { route: 'production-panel', label: 'Ishlab chiqarish', icon: 'i-factory', perm: PERM.PRODUCTION_READ, children: [
-      { route: 'production', label: 'Reja va yozuvlar' },
+      { route: 'production', label: 'Yopilmagan buyurtmalar', view: 'production' },
+      { route: 'production-closed', label: 'Yakunlangan buyurtmalar', view: 'production' },
+      { route: 'production-made', label: 'Ishlab chiqarilganlar', view: 'production' },
+      { route: 'production-stats', label: 'Umumiy ko‘rsatkichlar', view: 'production-panel' },
     ] },
     { route: 'lab', label: 'Laboratoriya', icon: 'i-flask', perm: PERM.LAB_READ },
     { route: 'sales', label: 'Sotuv', icon: 'i-calc', perm: PERM.ORDERS_READ, children: [

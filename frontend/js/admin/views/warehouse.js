@@ -361,14 +361,33 @@ function transferForm(lk, onSaved) {
 
 /* ------------------------------------------------------------ Inventarizatsiya */
 
+/** Inventarizatsiya: avval o'tkazilganlar tarixi; «Yangi inventarizatsiya» — sanash varag'i */
 async function inventory(ctx, holder) {
+  if (ctx.query.get('new') === '1') return inventorySheet(ctx, holder);
+  const canManage = session.can(PERM.WAREHOUSE_MANAGE);
+  const from = ctx.query.get('from') || monthStart();
+  const to = ctx.query.get('to') || todayISO();
+  await load(ctx, holder, () => http(`/admin/warehouse/movements${qs({ kind: 'inventory', date_from: from, date_to: to })}`), ({ items }) => {
+    const byDate = {};
+    items.forEach((x) => { (byDate[x.movement_date] ||= []).push(x); });
+    holder.innerHTML = `<div class="page-actions">${rangeBar({ from, to })}${canManage ? `<button class="btn btn--primary" data-new-inv>${icon('i-plus')} Yangi inventarizatsiya</button>` : ''}</div>
+      <section class="box"><div class="table-wrap"><table class="table"><thead><tr><th>Sana</th><th>Ombor</th><th>Material</th><th class="num">Tuzatish</th><th>Izoh</th></tr></thead>
+      <tbody>${items.length ? Object.keys(byDate).sort().reverse().flatMap((d) => byDate[d]).map((x) => `<tr><td class="nowrap">${escapeHtml(fmtDate(x.movement_date))}</td><td>${escapeHtml(x.warehouse)}</td><td class="strong">${escapeHtml(x.material)}</td>
+        <td class="num ${x.quantity < 0 ? 'text-danger' : 'text-success'}">${x.quantity > 0 ? '+' : ''}${nf(x.quantity)} ${escapeHtml(unitOf(x.unit))}</td><td>${escapeHtml(x.note || '')}</td></tr>`).join('')
+    : emptyRow(5, 'Bu davrda inventarizatsiya o‘tkazilmagan. «Yangi inventarizatsiya» tugmasini bosing.')}</tbody></table></div></section>`;
+    bindPeriod(holder);
+    holder.querySelector('[data-new-inv]')?.addEventListener('click', () => setQuery({ new: '1' }));
+  });
+}
+
+async function inventorySheet(ctx, holder) {
   const canManage = session.can(PERM.WAREHOUSE_MANAGE);
   const warehouses = await http('/admin/warehouse/warehouses').catch(() => []);
   const active = warehouses.filter((w) => w.is_active);
   const wid = ctx.query.get('wid') || (active[0] ? String(active[0].id) : '');
   if (!wid) { holder.innerHTML = '<div class="box coming-soon"><p class="text-muted">Avval «Omborlar» bo‘limida ombor qo‘shing.</p></div>'; return; }
   await load(ctx, holder, () => http(`/admin/warehouse/stock${qs({ warehouse_id: wid })}`), (rows) => {
-    holder.innerHTML = `<div class="page-actions"><label class="text-muted" for="fWh">Ombor:</label>
+    holder.innerHTML = `<div class="page-actions"><button class="btn btn--outline" data-back>← Inventarizatsiyalar</button><label class="text-muted" for="fWh">Ombor:</label>
       <select class="select" id="fWh">${warehouseOptions(warehouses, false).map((o) => `<option value="${o.value}" ${String(o.value) === wid ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select>
       <label class="text-muted">Sana:</label><input class="input" type="date" id="invDate" value="${todayISO()}" max="${todayISO()}"></div>
       <section class="box"><div class="box__body"><p class="text-muted">Haqiqatda sanalgan miqdorni kiriting. Farq avtomatik «Inventarizatsiya» tuzatishi sifatida yoziladi. Bo‘sh qoldirilgan qatorlar o‘zgarmaydi.</p></div>
@@ -377,6 +396,7 @@ async function inventory(ctx, holder) {
         <td class="num"><input class="input input--sm" name="c${r.material_id}" inputmode="decimal" autocomplete="off" aria-label="${escapeHtml(r.name)}"></td><td class="num" data-diff>—</td></tr>`).join('') : emptyRow(5, 'Xomashyo yo‘q.')}</tbody></table></div>
       ${canManage && rows.length ? '<div class="box__body"><button class="btn btn--primary" type="submit">Tuzatishlarni saqlash</button></div>' : ''}</form></section>`;
     holder.querySelector('#fWh').addEventListener('change', (e) => setQuery({ wid: e.target.value }));
+    holder.querySelector('[data-back]').addEventListener('click', () => setQuery({ new: '' }));
     const form = holder.querySelector('#invForm');
     form.addEventListener('input', (e) => {
       const row = e.target.closest('tr');
@@ -396,7 +416,7 @@ async function inventory(ctx, holder) {
       try {
         const r = await http('/admin/warehouse/inventory', { method: 'POST', body: { warehouse_id: Number(wid), movement_date: holder.querySelector('#invDate').value, lines } });
         toast(`${r.adjusted} ta tuzatish yozildi.`, 'success');
-        inventory(ctx, holder);
+        setQuery({ new: '' });
       } catch (err) { toast(err.message, 'error'); }
     });
   });

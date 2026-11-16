@@ -45,6 +45,10 @@ class RecordIn(InputModel):
     batch_number: Annotated[str | None, Field(default=None, max_length=50)]
     customer_id: int | None = None  # buyurtma tanlansa, mijoz buyurtmadan olinadi
     vehicle_id: int | None = None   # tashuvchi mikser
+    driver_id: int | None = None
+    operator_name: Annotated[str | None, Field(default=None, max_length=150)]
+    operator_phone: Annotated[str | None, Field(default=None, max_length=30)]
+    notes: Annotated[str | None, Field(default=None, max_length=1000)]
     produced_volume_m3: Annotated[Decimal, Field(gt=0, max_digits=8, decimal_places=1)]
     produced_at: datetime | None = None  # bo'sh bo'lsa — hozirgi vaqt
 
@@ -77,6 +81,11 @@ class RecordOut(BaseModel):
     customer_name: str | None = None
     vehicle_id: int | None = None
     plate_number: str | None = None
+    driver_id: int | None = None
+    driver_name: str | None = None
+    operator_name: str | None = None
+    operator_phone: str | None = None
+    notes: str | None = None
     waybill_no: str | None = None
     produced_volume_m3: JsonDecimal
     produced_at: datetime
@@ -109,3 +118,14 @@ class ProductionSummary(BaseModel):
     open_orders: int
     open_orders_remaining_m3: JsonDecimal
     by_product: list[ProductDaySummary]
+
+
+class RecordUpdate(InputModel):
+    """Xato kiritilgan yozuvni tuzatish (sifat nazoratidan oldin)."""
+
+    produced_volume_m3: Annotated[Decimal, Field(gt=0, max_digits=8, decimal_places=1)]
+    vehicle_id: int | None = None
+    driver_id: int | None = None
+    operator_name: Annotated[str | None, Field(default=None, max_length=150)]
+    operator_phone: Annotated[str | None, Field(default=None, max_length=30)]
+    notes: Annotated[str | None, Field(default=None, max_length=1000)]

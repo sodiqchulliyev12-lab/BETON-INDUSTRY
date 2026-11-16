@@ -186,7 +186,7 @@ async function directory(ctx, box, canManage, isAdmin) {
   });
 }
 
-function driverForm(driver, onSaved) {
+export function driverForm(driver, onSaved) {
   const d = driver || { full_name: '', phone: '', telegram: '', employment: 'staff', is_active: true, notes: '' };
   formModal({
     title: driver ? 'Haydovchini tahrirlash' : 'Yangi haydovchi',

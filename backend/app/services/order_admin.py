@@ -112,7 +112,7 @@ def list_orders(
             customer_id=o.customer_id,
             customer_name=o.customer.full_name,
             customer_phone=o.customer.phone,
-            products=", ".join(dict.fromkeys(i.grade_class for i in o.items)),
+            products=", ".join(dict.fromkeys(i.product_name for i in o.items)),
             volume_m3=sum((i.volume_m3 for i in o.items), Decimal("0")),
             delivery_required=o.delivery_required,
             delivery_date=o.delivery_date,
