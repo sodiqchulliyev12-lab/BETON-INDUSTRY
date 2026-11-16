@@ -60,8 +60,8 @@ export function dayBar({ date, allowFuture = false, label = '', param = 'date' }
   const t = todayISO();
   return `<div class="pbar" data-pbar="day" data-param="${param}" data-future="${allowFuture ? 1 : 0}">
     ${label ? `<span class="pbar__label">${escapeHtml(label)}</span>` : ''}
-    <input class="input pbar__date" type="date" value="${escapeHtml(date)}" ${allowFuture ? '' : `max="${t}"`} aria-label="Sana">
     ${NAV_BTNS('kun')}
+    <input class="input pbar__date" type="date" value="${escapeHtml(date)}" ${allowFuture ? '' : `max="${t}"`} aria-label="Sana">
   </div>`;
 }
 
@@ -70,11 +70,11 @@ export function rangeBar({ from, to, allowFuture = false, label = '', fromParam 
   const t = todayISO();
   return `<div class="pbar" data-pbar="range" data-future="${allowFuture ? 1 : 0}" data-fp="${fromParam}" data-tp="${toParam}">
     ${label ? `<span class="pbar__label">${escapeHtml(label)}</span>` : ''}
+    ${NAV_BTNS('davr')}
     <input class="input pbar__date" type="date" value="${escapeHtml(from || '')}" data-from ${allowFuture ? '' : `max="${t}"`} aria-label="Boshlanish sanasi">
     <span class="pbar__dash">–</span>
     <input class="input pbar__date" type="date" value="${escapeHtml(to || '')}" data-to ${allowFuture ? '' : `max="${t}"`} aria-label="Tugash sanasi">
     <button type="button" class="pbar__clear" data-clear>Davrni tozalash</button>
-    ${NAV_BTNS('davr')}
   </div>`;
 }
 

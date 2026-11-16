@@ -370,7 +370,7 @@
 .price-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--sp-4); }
 
 /* ← → : panelning o'ng tomonida, qalin va aniq ko'rinadi */
-.pbar__nav { margin-left: 6px; }
+.pbar__nav { margin: 0 6px 0 0; }
 .pbar__nav .pbar__btn { min-width: 44px; padding-block: 5px; font-size: 1.5rem; font-weight: 900; line-height: 1; color: var(--c-graphite); border-width: 2px; border-color: var(--c-graphite); background: #fff; }
 .pbar__nav .pbar__btn:hover:not([disabled]) { background: var(--c-yellow); }
 .pbar__nav .pbar__btn:last-child { margin-left: -2px; }
